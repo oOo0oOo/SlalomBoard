@@ -14,8 +14,8 @@ class SlalomBoard(object):
 		self.player = 0.0
 
 		# Board Parameters: Leaning
-		self.max_lean = 0.02
-		self.lean_vel = 0.003
+		self.max_lean = 0.025
+		self.lean_vel = 0.0025
 
 		# Constant breaking & max speed
 		self.max_speed = 25
@@ -23,12 +23,15 @@ class SlalomBoard(object):
 		self.slowed = 0.05
 
 		#Pumping
-		self.max_pump = 5
+		self.max_pump = 7.5
+		self.pump_delay = 15 # in ticks @ 40ms
 		self.optimal_velocity = 10
 		self.sigma = 8
 
 		# Calculate value at maximum (probagbilty density function, see pump())
 		self.pump_scale = 1 / (math.sqrt(2*math.pi*self.sigma**2))
+
+		self.last_pump = self.pump_delay
 
 
 	def board_vector(self):
@@ -54,32 +57,39 @@ class SlalomBoard(object):
 				self.player = self.max_lean
 
 	def pump(self):
-		dir_vect = Vector(Point(0,0), self.direction)
-		velocity = dir_vect.length()
+		if self.last_pump >= self.pump_delay:
+			self.last_pump = 0
 
-		# Scale pumping (best pumping in curve at optimal pumping speed)
+			dir_vect = Vector(Point(0,0), self.direction)
+			velocity = dir_vect.length()
 
-		# check how vertical board is & scale to 0-1
-		verticality = 1 - ( abs(self.direction.x) / velocity )
+			# Scale pumping (best pumping in curve at optimal pumping speed)
 
-		# Check how much the player is leaning outwards scaled 0-1
-		leaning = abs(self.player) / self.max_lean
+			# check how vertical board is & scale to 0-1
+			verticality = 1 - ( abs(self.direction.x) / velocity )
 
-		# Check the speed (is scaled according to normal distributed 
-		# around an optimal speed )
-		# This is achieved using the probability density function of the normal distribution
-		expo = (velocity - self.optimal_velocity)**2 / (2 * self.sigma**2)
-		speed = 1 / (math.sqrt(2 * math.pi * self.sigma**2))
-		speed *= math.exp(-expo)
+			# Check how much the player is leaning outwards scaled 0-1
+			leaning = abs(self.player) / self.max_lean
 
-		# Scale the speed (value = 1 @ optimal velocity):
-		speed /= self.pump_scale
+			# Check the speed (is scaled according to normal distributed 
+			# around an optimal speed )
+			# This is achieved using the probability density function of the normal distribution
+			expo = (velocity - self.optimal_velocity)**2 / (2 * self.sigma**2)
+			speed = 1 / (math.sqrt(2 * math.pi * self.sigma**2))
+			speed *= math.exp(-expo)
 
-		pump = verticality * leaning * speed * self.max_pump
+			# Scale the speed (value = 1 @ optimal velocity):
+			speed /= self.pump_scale
 
-		self.direction = dir_vect.scale_absolute(velocity + pump).vect
+			pump = verticality * leaning * speed * self.max_pump
+
+			print 'PUMP: {}!!!!!'.format(pump)
+			self.direction = dir_vect.scale_absolute(velocity + pump).vect
 
 	def on_tick(self):
+		# update last pump
+		self.last_pump += 1
+
 		# Scale the board according to 
 		board = self.board_vector()
 		#speed_scale = 1.5 *  board.length() * (1 - (board.length() / self.max_speed + 0.0001 ))
@@ -144,7 +154,7 @@ class Game(object):
 		self.trail = []
 
 		# The create obstacle parameters
-		self.step_size = 1
+		self.step_size = 10
 
 		self.last_random = 0
 
@@ -231,7 +241,6 @@ class Game(object):
 		# Create new obstacles
 		px = int(self.board.position.y)
 		if px > self.last_random + self.step_size:
-			print 'checking'
 			self.last_random = px
 			self.random_obstacle(0.1, (10, 25))
 
@@ -256,6 +265,7 @@ def main():
 	brown = pygame.Color(133, 60, 8)
 	black = pygame.Color(0, 0, 0)
 	red = pygame.Color(255, 0, 0)
+	blue = pygame.Color(0, 0, 255)
 	# The slalom board
 	game = Game(game_size, start_pos)
 
@@ -284,8 +294,8 @@ def main():
 		pygame.draw.line(window, brown, p1, p3, 4)
 
 		# And player vector
-		pl = game.player_vector().relative_point(50)
-		pygame.draw.line(window, red, p1, pl.coordinates(), 2)
+		pl = game.player_vector().relative_point(100)
+		pygame.draw.line(window, blue, p1, pl.coordinates(), 10)
 
 		# Show trail
 		position = game.board.position
