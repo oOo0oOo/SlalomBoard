@@ -15,8 +15,8 @@ class SlalomBoard(object):
 		self.player = 0.0
 
 		# Board Parameters: Leaning
-		self.max_lean = 0.025
-		self.lean_vel = 0.0025
+		self.max_lean = 0.026
+		self.lean_vel = 0.0027
 
 		# Constant breaking & max speed
 		self.max_speed = 25
@@ -195,7 +195,7 @@ class Game(object):
 		upper = int(self.size[1])
 
 		for i in range(pos - lower, pos + upper):
-			if not i % 150:
+			if not i % 200:
 				self.markings.append(i - pos)
 
 
@@ -265,11 +265,11 @@ window = pygame.display.set_mode(game_size)
 pygame.display.set_caption('Slalom Boarding')
 
 # colors
-white = pygame.Color(255, 255, 255)
+white = pygame.Color(245, 245, 245)
 brown = pygame.Color(133, 60, 8)
-black = pygame.Color(0, 0, 0)
-red = pygame.Color(255, 0, 0)
-blue = pygame.Color(0, 0, 255)
+black = pygame.Color(5, 8, 7)
+red = pygame.Color(255, 30, 30)
+blue = pygame.Color(5, 10, 145)
 
 # The slalom board
 game = Game(game_size, start_pos)
@@ -303,7 +303,7 @@ while True:
 
 	# Draw road markings
 	for m in game.markings:
-		pygame.draw.line(window, white, (middle, m), (middle, m+50), 8)
+		pygame.draw.line(window, white, (middle, m), (middle, m+80), 8)
 
 	# Draw all the obstacles
 	for o in game.obstacles:
@@ -311,6 +311,12 @@ while True:
 		# pygame.draw.circle(window, white, [int(p) for p in o.position.coordinates()], o.radius, 0)
 
 		draw_image(o.img, o.position, o.rotation, o.radius * 2)
+	
+	# Show trail
+	position = game.board.position
+	for i, point in enumerate(reversed(game.trail)):
+		y =  point.y - position.y + start_pos
+		pygame.draw.circle(window, red, (int(point.x), int(y)), 1, 0)
 
 	# Show board vector
 	pos = game.board_vector().scale_absolute(20)
@@ -329,12 +335,6 @@ while True:
 	# And player vector
 	pl = game.player_vector().relative_point(100)
 	pygame.draw.line(window, blue, p1, pl.coordinates(), 10)
-
-	# Show trail
-	position = game.board.position
-	for i, point in enumerate(reversed(game.trail)):
-		y =  point.y - position.y + start_pos
-		pygame.draw.circle(window, red, (int(point.x), int(y)), 1, 0)
 
 	#Handle events (single press, not hold)
 	for event in pygame.event.get():
