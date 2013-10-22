@@ -2,6 +2,7 @@ import sys
 import math
 import pygame
 import random
+from os import listdir
 from pygame.locals import QUIT, KEYDOWN, K_LEFT, K_RIGHT, K_DOWN
 from geometry import Point, Vector
 
@@ -126,9 +127,11 @@ class SlalomBoard(object):
 		self.position = new_pos
 
 class CircularObstacle(object):
-	def __init__(self, position, radius):
+	def __init__(self, position, radius, image):
 		self.radius = radius
 		self.position = position
+		self.img = image
+		self.rotation = random.randrange(0, 360)
 
 	def on_tick(self, speed_y):
 		self.position.y -= speed_y
@@ -169,11 +172,12 @@ class Game(object):
 
 	def random_obstacle(self, probability = 0.01, size = (3, 20)):
 		if random.random() < probability:
-			# Create a random circular obstacle
+			# Create a random circular obstacle (with pothole image)
 			y = self.size[1] + 50
 			x = random.randrange(0, self.size[1])
 			radius = random.randrange(size[0], size[1]+1)
-			self.obstacles.append(CircularObstacle(Point(x, y), radius))
+			key = random.choice(bmps['potholes'].keys())
+			self.obstacles.append(CircularObstacle(Point(x, y), radius, bmps['potholes'][key]))
 
 	def remove_obstacles(self):
 		# lower = self.board.position.y - self.start.y - 50
@@ -248,82 +252,103 @@ class Game(object):
 		self.remove_obstacles()
 
 
-def main():
-	# all the pygame stuff
-	pygame.init()
-	fpsClock = pygame.time.Clock()
+## Setting up pygame and the main gameloop
+# all the pygame stuff
+pygame.init()
+fpsClock = pygame.time.Clock()
 
-	game_size = (420, 650)
-	middle = game_size[0]/2
-	start_pos = game_size[1] / 4
+game_size = (420, 650)
+middle = game_size[0]/2
+start_pos = game_size[1] / 4
 
-	window = pygame.display.set_mode(game_size)
-	pygame.display.set_caption('Slalom Boarding')
+window = pygame.display.set_mode(game_size)
+pygame.display.set_caption('Slalom Boarding')
 
-	# colors
-	white = pygame.Color(255, 255, 255)
-	brown = pygame.Color(133, 60, 8)
-	black = pygame.Color(0, 0, 0)
-	red = pygame.Color(255, 0, 0)
-	blue = pygame.Color(0, 0, 255)
-	# The slalom board
-	game = Game(game_size, start_pos)
+# colors
+white = pygame.Color(255, 255, 255)
+brown = pygame.Color(133, 60, 8)
+black = pygame.Color(0, 0, 0)
+red = pygame.Color(255, 0, 0)
+blue = pygame.Color(0, 0, 255)
 
-	# The game loop
-	while True:
-		window.fill(black)
+# The slalom board
+game = Game(game_size, start_pos)
 
-		# Draw road markings
-		for m in game.markings:
-			pygame.draw.line(window, white, (middle, m), (middle, m+50), 8)
+# All the images
+bmps = {'potholes': {}}
+for folder in bmps.keys():
+	path = 'img/' + folder + '/'
+	files = [path + f for f in listdir(path)]
+	for f in listdir(path):
+		p = path + f
+		bmps[folder][f] = pygame.image.load(p)
 
-		# Draw all the obstacles
-		for o in game.obstacles:
-			pos = [int(c) for c in o.position.coordinates()]
-			pygame.draw.circle(window, white, tuple(pos), o.radius, 0)
+# Some drawing helpers
+def draw_image(bmp, point, rotation = 0, size_x = 10):
+	scale = float(size_x) / bmp.get_size()[0]
+	# Rotozoom image
+	rotated = pygame.transform.rotozoom(bmp, rotation, scale)
 
-		# Show board vector
-		pos = game.board_vector().scale_absolute(20)
+	#get the rect of the rotated surf and set it's center to the oldCenter
+	rotRect = rotated.get_rect()
+	d1, d2 = rotRect.size
+	rotRect.center = (point.x, point.y)
 
-		p1 = pos.p1.coordinates()
-		p2 = pos.p2.coordinates()
-		p3 = pos.relative_point(-1).coordinates()
+	window.blit(rotated, rotRect)
 
-		# pygame.draw.circle(window, , [int(p) for p in p1], 5, 0)
-		pygame.draw.line(window, brown, p1, p2, 5)
-		pygame.draw.line(window, brown, p1, p3, 4)
+# The game loop
+while True:
+	window.fill(black)
 
-		# And player vector
-		pl = game.player_vector().relative_point(100)
-		pygame.draw.line(window, blue, p1, pl.coordinates(), 10)
+	# Draw road markings
+	for m in game.markings:
+		pygame.draw.line(window, white, (middle, m), (middle, m+50), 8)
 
-		# Show trail
-		position = game.board.position
-		for i, point in enumerate(reversed(game.trail)):
-			y =  point.y - position.y + start_pos
-			pygame.draw.circle(window, red, (int(point.x), int(y)), 1, 0)
+	# Draw all the obstacles
+	for o in game.obstacles:
 
-		#Handle events (single press, not hold)
-		for event in pygame.event.get():
-			if event.type == QUIT:
-				pygame.quit()
-				sys.exit()
-			elif event.type == KEYDOWN and event.key == K_DOWN:
-				game.board.pump()
-		
-		# Check for pressed leaning keys
-		keys = pygame.key.get_pressed()
-		if keys[K_LEFT]:
-			game.board.lean(True)
-		if keys[K_RIGHT]:
-			game.board.lean(False)
+		# pygame.draw.circle(window, white, [int(p) for p in o.position.coordinates()], o.radius, 0)
 
-		pygame.display.update()
+		draw_image(o.img, o.position, o.rotation, o.radius * 2)
 
-		game.on_tick()
+	# Show board vector
+	pos = game.board_vector().scale_absolute(20)
 
-		fpsClock.tick(40)
+	p1 = pos.p1.coordinates()
+	p2 = pos.p2.coordinates()
+	p3 = pos.relative_point(-1).coordinates()
 
-if __name__ == '__main__':
-	main()
+	# pygame.draw.circle(window, , [int(p) for p in p1], 5, 0)
+	pygame.draw.line(window, brown, p1, p2, 5)
+	pygame.draw.line(window, brown, p1, p3, 4)
 
+	# And player vector
+	pl = game.player_vector().relative_point(100)
+	pygame.draw.line(window, blue, p1, pl.coordinates(), 10)
+
+	# Show trail
+	position = game.board.position
+	for i, point in enumerate(reversed(game.trail)):
+		y =  point.y - position.y + start_pos
+		pygame.draw.circle(window, red, (int(point.x), int(y)), 1, 0)
+
+	#Handle events (single press, not hold)
+	for event in pygame.event.get():
+		if event.type == QUIT:
+			pygame.quit()
+			sys.exit()
+		elif event.type == KEYDOWN and event.key == K_DOWN:
+			game.board.pump()
+	
+	# Check for pressed leaning keys
+	keys = pygame.key.get_pressed()
+	if keys[K_LEFT]:
+		game.board.lean(True)
+	if keys[K_RIGHT]:
+		game.board.lean(False)
+
+	pygame.display.update()
+
+	game.on_tick()
+
+	fpsClock.tick(40)
