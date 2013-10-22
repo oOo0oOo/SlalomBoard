@@ -1,7 +1,9 @@
 import sys
+import math
 import pygame
 from pygame.locals import QUIT, KEYDOWN, K_LEFT, K_RIGHT, K_DOWN
 from geometry import Point, Vector
+
 
 class SlalomBoard(object):
 	def __init__(self, position, direction):
@@ -9,6 +11,19 @@ class SlalomBoard(object):
 		self.position = position
 		self.direction = direction
 		self.player = 0.0
+
+		# Board Parameters: Leaning
+		self.max_lean = 0.02
+		self.lean_vel = 0.003
+
+		#Pumping
+		self.max_pump = 10
+		self.optimal_velocity = 10
+		self.sigma = 8
+
+		# Calculate value at maximum (probagbilty density function, see pump())
+		self.pump_scale = 1 / (math.sqrt(2*math.pi*self.sigma**2))
+
 
 	def board_vector(self):
 		pos = Point(self.position.x, self.start.y)
@@ -20,30 +35,43 @@ class SlalomBoard(object):
 		return scaled.normal_vector(-self.player)
 
 	def lean(self, left = True):
-		l = 0.003
-		if self.player != 0.0:
-			l /= 0.8 * (abs(self.player) / l)
-
-		if l<0.0001:
-			l = 0.0001
-
-		max_lean = 0.02
-
-		l = 0.003
+		l = self.lean_vel
 		if left:
-			if self.player-l >= -max_lean:
+			if self.player-l >= -self.max_lean:
 				self.player -= l
 			else:
-				self.player = -max_lean
+				self.player = -self.max_lean
 		else:
-			if self.player+l <= max_lean:
+			if self.player+l <= self.max_lean:
 				self.player += l
 			else:
-				self.player = max_lean
+				self.player = self.max_lean
 
 	def pump(self):
-		vector = Vector(Point(0,0), self.direction)
-		self.direction = vector.scale_absolute(vector.length() + 1).vect
+		dir_vect = Vector(Point(0,0), self.direction)
+		velocity = dir_vect.length()
+
+		# Scale pumping (best pumping in curve at optimal pumping speed)
+
+		# check how vertical board is & scale to 0-1
+		verticality = 1 - ( abs(self.direction.x) / velocity )
+
+		# Check how much the player is leaning outwards scaled 0-1
+		leaning = abs(self.player) / self.max_lean
+
+		# Check the speed (is scaled according to normal distributed 
+		# around an optimal speed )
+		# This is achieved using the probability density function of the normal distribution
+		expo = (velocity - self.optimal_velocity)**2 / (2 * self.sigma**2)
+		speed = 1 / (math.sqrt(2 * math.pi * self.sigma**2))
+		speed *= math.exp(-expo)
+
+		# Scale the speed (value = 1 @ optimal velocity):
+		speed /= self.pump_scale
+
+		pump = verticality * leaning * speed * self.max_pump
+
+		self.direction = dir_vect.scale_absolute(velocity + pump).vect
 
 	def on_tick(self):
 		# Calculate the new direction
@@ -83,9 +111,6 @@ class Game(object):
 
 		self.markings = []
 		self.trail = []
-
-	def lean(self, left = True):
-		self.board.lean(left)
 
 	def board_vector(self):
 		return self.board.board_vector()
@@ -178,21 +203,20 @@ def main():
 			y =  point.y - position.y + start_pos
 			pygame.draw.circle(window, red, (int(point.x), int(y)), 1, 0)
 
-		#Handle events
+		#Handle events (single press, not hold)
 		for event in pygame.event.get():
 			if event.type == QUIT:
 				pygame.quit()
 				sys.exit()
+			elif event.type == KEYDOWN and event.key == K_DOWN:
+				game.board.pump()
 		
-		# Movement events
+		# Check for pressed leaning keys
 		keys = pygame.key.get_pressed()
 		if keys[K_LEFT]:
-			game.lean(True)
+			game.board.lean(True)
 		if keys[K_RIGHT]:
-			game.lean(False)
-		if keys[K_DOWN]:
-			game.board.pump()
-
+			game.board.lean(False)
 
 		pygame.display.update()
 
