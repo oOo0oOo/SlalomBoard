@@ -143,6 +143,11 @@ class Game(object):
 		self.markings = []
 		self.trail = []
 
+		# The create obstacle parameters
+		self.step_size = 1
+
+		self.last_random = 0
+
 
 	def board_vector(self):
 		return self.board.board_vector()
@@ -224,7 +229,11 @@ class Game(object):
 			self.trail.pop(0)
 
 		# Create new obstacles
-		self.random_obstacle(0.08, (10, 25))
+		px = int(self.board.position.y)
+		if px > self.last_random + self.step_size:
+			print 'checking'
+			self.last_random = px
+			self.random_obstacle(0.1, (10, 25))
 
 		# Clean up obstacles
 		self.remove_obstacles()
