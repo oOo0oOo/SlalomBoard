@@ -1,6 +1,7 @@
 import sys
 import math
 import pygame
+import random
 from pygame.locals import QUIT, KEYDOWN, K_LEFT, K_RIGHT, K_DOWN
 from geometry import Point, Vector
 
@@ -16,8 +17,13 @@ class SlalomBoard(object):
 		self.max_lean = 0.02
 		self.lean_vel = 0.003
 
+		# Constant breaking & max speed
+		self.max_speed = 25
+		self.break_speed = 3
+		self.slowed = 0.05
+
 		#Pumping
-		self.max_pump = 10
+		self.max_pump = 5
 		self.optimal_velocity = 10
 		self.sigma = 8
 
@@ -74,8 +80,15 @@ class SlalomBoard(object):
 		self.direction = dir_vect.scale_absolute(velocity + pump).vect
 
 	def on_tick(self):
+		# Scale the board according to 
+		board = self.board_vector()
+		#speed_scale = 1.5 *  board.length() * (1 - (board.length() / self.max_speed + 0.0001 ))
+		# print speed_scale
+		# board = board.scale_absolute(speed_scale).vect
+
+		board = board.vect
+
 		# Calculate the new direction
-		board = self.board_vector().vect
 		player = self.player_vector().vect
 		new_dir = board.transform(player)
 
@@ -84,20 +97,37 @@ class SlalomBoard(object):
 			new_dir.y = 0
 
 		# You can only go a certain speed
-		# and you are slowed down 
-		max_speed = 25
-		break_speed = 3
-		slowed = 0.05
-
+		# and you are slowed down if above a certain speed
 		vector = Vector(Point(0,0), new_dir)
-		if vector.length() > max_speed:
-			new_dir = vector.scale_absolute(max_speed - slowed).vect
-		elif vector.length() > break_speed:
-			new_dir = vector.scale_absolute(float(vector.length()) - slowed).vect
+
+		#scale = -1
+		#if vector.length() > self.max_speed:
+		#	scale = self.max_speed - self.slowed
+		if vector.length() > self.break_speed:
+			scale = float(vector.length()) - self.slowed
+			new_dir = vector.scale_absolute(scale).vect
+			
+		#if scale != -1:
+		#	new_dir = vector.scale_absolute(scale).vect
 
 		new_pos = self.position.transform(new_dir)
+
 		self.direction = new_dir
 		self.position = new_pos
+
+class CircularObstacle(object):
+	def __init__(self, position, radius):
+		self.radius = radius
+		self.position = position
+
+	def on_tick(self, speed_y):
+		self.position.y -= speed_y
+
+	def check_collision(self, point):
+		if Vector(point, self.position).length() < self.radius:
+			return True
+		else:
+			return False
 
 
 class Game(object):
@@ -109,14 +139,34 @@ class Game(object):
 
 		self.board = SlalomBoard(self.start, direction)
 
+		self.obstacles = []
 		self.markings = []
 		self.trail = []
+
 
 	def board_vector(self):
 		return self.board.board_vector()
 
+
 	def player_vector(self):
 		return self.board.player_vector()
+
+
+	def random_obstacle(self, probability = 0.01, size = (3, 20)):
+		if random.random() < probability:
+			# Create a random circular obstacle
+			y = self.size[1] + 50
+			x = random.randrange(0, self.size[1])
+			radius = random.randrange(size[0], size[1]+1)
+			self.obstacles.append(CircularObstacle(Point(x, y), radius))
+
+	def remove_obstacles(self):
+		# lower = self.board.position.y - self.start.y - 50
+		len_ob = len(self.obstacles)
+		for i, o in enumerate(reversed(self.obstacles)):
+			if o.position.y < - 50:
+				self.obstacles.pop(len_ob - i -1)
+
 
 	def update_markings(self):
 		self.markings = []
@@ -129,10 +179,12 @@ class Game(object):
 			if not i % 150:
 				self.markings.append(i - pos)
 
+
 	def check_collision(self):
 		board = self.board_vector()
-		found = False
 
+		# Check collision of board with wall
+		found = False
 		if board.p1.x < 0:
 			self.board.position.x = 0
 			found = True
@@ -142,16 +194,40 @@ class Game(object):
 
 		if found:
 			vector = Vector(Point(0,0), self.board.direction)
+			self.board.direction = vector.scale_absolute(3).vect
+			return
+
+		# Check collision of board with any obstacle
+		found = False
+		for ob in self.obstacles:
+			if ob.check_collision(board.p1):
+				found = True
+				break
+
+		if found:
+			vector = Vector(Point(0,0), self.board.direction)
 			self.board.direction = vector.scale_absolute(5).vect
 
 	def on_tick(self):
+		# Advance board
 		self.board.on_tick()
+
+		# Advance obstacles
+		speed_y = self.board.direction.y
+		[o.on_tick(speed_y) for o in self.obstacles]
+
 		self.check_collision()
 		self.update_markings()
 
 		self.trail.append(self.board.position)
 		if len(self.trail) > self.start.y/2:
 			self.trail.pop(0)
+
+		# Create new obstacles
+		self.random_obstacle(0.08, (10, 25))
+
+		# Clean up obstacles
+		self.remove_obstacles()
 
 
 def main():
@@ -178,6 +254,15 @@ def main():
 	while True:
 		window.fill(black)
 
+		# Draw road markings
+		for m in game.markings:
+			pygame.draw.line(window, white, (middle, m), (middle, m+50), 8)
+
+		# Draw all the obstacles
+		for o in game.obstacles:
+			pos = [int(c) for c in o.position.coordinates()]
+			pygame.draw.circle(window, white, tuple(pos), o.radius, 0)
+
 		# Show board vector
 		pos = game.board_vector().scale_absolute(20)
 
@@ -192,10 +277,6 @@ def main():
 		# And player vector
 		pl = game.player_vector().relative_point(50)
 		pygame.draw.line(window, red, p1, pl.coordinates(), 2)
-
-		# And all road markings
-		for m in game.markings:
-			pygame.draw.line(window, white, (middle, m), (middle, m+50), 8)
 
 		# Show trail
 		position = game.board.position
