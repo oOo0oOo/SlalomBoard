@@ -129,7 +129,6 @@ class Game(object):
 			self.trail.pop(0)
 
 
-
 def main():
 	# all the pygame stuff
 	pygame.init()
@@ -144,6 +143,7 @@ def main():
 
 	# colors
 	white = pygame.Color(255, 255, 255)
+	brown = pygame.Color(133, 60, 8)
 	black = pygame.Color(0, 0, 0)
 	red = pygame.Color(255, 0, 0)
 	# The slalom board
@@ -154,15 +154,15 @@ def main():
 		window.fill(black)
 
 		# Show board vector
-		pos = game.board_vector().scale_absolute(15)
+		pos = game.board_vector().scale_absolute(20)
 
 		p1 = pos.p1.coordinates()
 		p2 = pos.p2.coordinates()
 		p3 = pos.relative_point(-1).coordinates()
 
 		# pygame.draw.circle(window, , [int(p) for p in p1], 5, 0)
-		pygame.draw.line(window, white, p1, p2, 3)
-		pygame.draw.line(window, white, p1, p3, 2)
+		pygame.draw.line(window, brown, p1, p2, 5)
+		pygame.draw.line(window, brown, p1, p3, 4)
 
 		# And player vector
 		pl = game.player_vector().relative_point(50)
