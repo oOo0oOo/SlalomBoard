@@ -26,8 +26,8 @@ class SlalomBoard(object):
 		#Pumping
 		self.max_pump = 7.5
 		self.pump_delay = 15 # in ticks @ 40ms
-		self.optimal_velocity = 10
-		self.sigma = 8
+		self.optimal_velocity = 6
+		self.sigma = 7
 
 		# Calculate value at maximum (probagbilty density function, see pump())
 		self.pump_scale = 1 / (math.sqrt(2*math.pi*self.sigma**2))
@@ -275,7 +275,8 @@ blue = pygame.Color(0, 0, 255)
 game = Game(game_size, start_pos)
 
 # All the images
-bmps = {'potholes': {}}
+bmps = {'potholes': {}, 'boards': {}}
+
 for folder in bmps.keys():
 	path = 'img/' + folder + '/'
 	files = [path + f for f in listdir(path)]
@@ -319,8 +320,11 @@ while True:
 	p3 = pos.relative_point(-1).coordinates()
 
 	# pygame.draw.circle(window, , [int(p) for p in p1], 5, 0)
-	pygame.draw.line(window, brown, p1, p2, 5)
-	pygame.draw.line(window, brown, p1, p3, 4)
+	#pygame.draw.line(window, brown, p1, p2, 5)
+	#pygame.draw.line(window, brown, p1, p3, 4)
+	
+	angle = game.board_vector().angle()
+	draw_image(bmps['boards']['standard.png'], pos.p1, -angle, 75)
 
 	# And player vector
 	pl = game.player_vector().relative_point(100)
