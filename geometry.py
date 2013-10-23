@@ -36,10 +36,13 @@ class Vector(object):
 		return self.vect.copy()
 
 	def angle(self):
-		p1 = self.vect
-		p2 = Point(1, 0)
-		angle = math.acos( (p1.x * p2.x + p1.y * p2.y) / (math.sqrt(p1.x**2 + p1.y**2) * math.sqrt(p2.x**2 + p2.y**2)) )
-		return math.degrees(angle)
+		if self.length():
+			p1 = self.vect
+			p2 = Point(1, 0)
+			angle = math.acos( (p1.x * p2.x + p1.y * p2.y) / (math.sqrt(p1.x**2 + p1.y**2) * math.sqrt(p2.x**2 + p2.y**2)) )
+			return math.degrees(angle)
+		else:
+			return 0
 
 	def length(self):
 		return math.sqrt((self.vect.x**2) + (self.vect.y**2))
@@ -48,6 +51,9 @@ class Vector(object):
 		scale = float(length) / self.length()
 		point = self.relative_point(scale)
 		return Vector(self.p1, point)
+
+	def scale_relative(self, ratio):
+		return Vector(self.p1, self.relative_point(ratio))
 
 	def transform(self, vector):
 		p1 = self.p1.transform(vector)
