@@ -45,7 +45,7 @@ class SlalomBoard(object):
 		return scaled.normal_vector(-self.player)
 
 	def speed(self):
-		return Vector(self.position, self.direction).length()
+		return self.board_vector().length()
 
 	def lean(self, left = True):
 		l = self.lean_vel
@@ -272,6 +272,8 @@ start_pos = game_size[1] / 4
 window = pygame.display.set_mode(game_size)
 pygame.display.set_caption('Slalom Boarding')
 
+speed_font = pygame.font.SysFont("helvetica", 15)
+
 # colors
 white = pygame.Color(245, 245, 245)
 brown = pygame.Color(133, 60, 8)
@@ -316,9 +318,7 @@ while True:
 
 	# Draw all the obstacles
 	for o in game.obstacles:
-
 		# pygame.draw.circle(window, white, [int(p) for p in o.position.coordinates()], o.radius, 0)
-
 		draw_image(o.img, o.position, o.rotation, o.radius * 2)
 	
 	# Show trail
@@ -357,6 +357,11 @@ while True:
 		pygame.draw.rect(window, color, rect)
 	else:
 		pygame.draw.circle(window, red, (20,20), 15, 0)
+
+	# Show current speed
+	text = str(int(game.board.speed()))
+	label = speed_font.render(text, 1, (250,240,245))
+	window.blit(label, (game_size[0] - 70, 50))
 
 
 	#Handle events (single press, not hold)
