@@ -24,10 +24,10 @@ class SlalomBoard(object):
 		self.slowed = 0.05
 
 		#Pumping
-		self.max_pump = 7.5
+		self.max_pump = 5
 		self.pump_delay = 25 # in ticks @ 40ms
 		self.optimal_velocity = 6
-		self.sigma = 7
+		self.sigma = 10
 
 		# Calculate value at maximum (probagbilty density function, see pump())
 		self.pump_scale = 1 / (math.sqrt(2*math.pi*self.sigma**2))
@@ -134,6 +134,8 @@ class SlalomBoard(object):
 		self.direction = new_dir
 		self.position = new_pos
 
+
+
 class CircularObstacle(object):
 	def __init__(self, position, radius, image):
 		self.radius = radius
@@ -151,6 +153,40 @@ class CircularObstacle(object):
 			return False
 
 
+
+class FloatingText(object):
+	def __init__(self, text, position, color = (245, 245, 245), stay = 100, fading = 20, size = 50, movement = Point(0, 0)):
+		'''
+			stay indicates the number of frames the text stays.
+			fading sets the number of frames it should fade, such that it is gone after stay.
+			Movement is a Point instance of the step that should be taken each frame.
+		'''
+		self.position = position
+		self.text = text
+		self.color = color
+		self.size = size
+		self.frames_left = stay
+		self.fading = fading
+		self.movement = movement
+
+		# used for fading
+		self.intensity = 1.0
+
+	def on_tick(self):
+		if self.frames_left:
+			self.frames_left -= 1
+			self.position = self.position.transform(self.movement)
+
+			# Check if font is faded
+			if self.fading and self.frames_left <= self.fading:
+				self.intensity = round(float(self.frames_left) / self.fading, 3)
+
+	def get_color(self):
+		# Scale color according to the intensity
+		color = [int(c * self.intensity) for c in self.color]
+		return tuple(color)
+
+
 class Game(object):
 	def __init__(self, size, start):
 		self.size = size
@@ -161,6 +197,7 @@ class Game(object):
 		self.board = SlalomBoard(self.start, direction)
 
 		self.obstacles = []
+		self.texts = []
 		self.markings = []
 		self.trail = []
 
@@ -168,6 +205,15 @@ class Game(object):
 		self.step_size = 10
 
 		self.last_random = 0
+		self.last_milestone = 0
+
+		self.setup_game()
+
+	def setup_game(self):
+		# Show player message
+		start = Point(self.start.x, self.size[1] - 50)
+		text = FloatingText('GO!!', start, (245, 50, 50), 350, 100, 100, Point(0, -1))
+		self.texts.append(text)
 
 
 	def board_vector(self):
@@ -188,12 +234,16 @@ class Game(object):
 			self.obstacles.append(CircularObstacle(Point(x, y), radius, bmps['potholes'][key]))
 
 	def remove_obstacles(self):
-		# lower = self.board.position.y - self.start.y - 50
 		len_ob = len(self.obstacles)
 		for i, o in enumerate(reversed(self.obstacles)):
 			if o.position.y < - 50:
 				self.obstacles.pop(len_ob - i -1)
 
+	def remove_texts(self):
+		len_texts = len(self.texts)
+		for i, t in enumerate(reversed(self.texts)):
+			if t.frames_left == 0:
+				self.texts.pop(len_texts - i -1)
 
 	def update_markings(self):
 		self.markings = []
@@ -243,6 +293,9 @@ class Game(object):
 		speed_y = self.board.direction.y
 		[o.on_tick(speed_y) for o in self.obstacles]
 
+		#Advance Floating texts
+		[t.on_tick() for t in self.texts]
+
 		self.check_collision()
 		self.update_markings()
 
@@ -254,10 +307,18 @@ class Game(object):
 		px = int(self.board.position.y)
 		if px > self.last_random + self.step_size:
 			self.last_random = px
-			self.random_obstacle(0.1, (10, 25))
+			self.random_obstacle(0.05, (10, 25))
 
-		# Clean up obstacles
+		# Display how far player is
+		if px >= self.last_milestone + 10000:
+			self.last_milestone = px
+			start = Point(self.size[0], self.size[1] - 50)
+			text = FloatingText('{}m'.format(px/100), start, (10, 10, 250), 150, 0, 50, Point(-3, 0))
+			self.texts.append(text)
+
+		# Clean up obstacles & floating texts
 		self.remove_obstacles()
+		self.remove_texts()
 
 
 ## Setting up pygame and the main gameloop
@@ -272,7 +333,8 @@ start_pos = game_size[1] / 4
 window = pygame.display.set_mode(game_size)
 pygame.display.set_caption('Slalom Boarding')
 
-speed_font = pygame.font.SysFont("helvetica", 15)
+speed_font = pygame.font.SysFont("helvetica", 30)
+text_font = pygame.font.SysFont("helvetica", 50)
 
 # colors
 white = pygame.Color(245, 245, 245)
@@ -286,7 +348,7 @@ blue = pygame.Color(5, 10, 145)
 game = Game(game_size, start_pos)
 
 # All the images
-bmps = {'potholes': {}, 'boards': {}}
+bmps = {'potholes': {}, 'boards': {}, 'player': {}}
 
 for folder in bmps.keys():
 	path = 'img/' + folder + '/'
@@ -307,6 +369,17 @@ def draw_image(bmp, point, rotation = 0, size_x = 10):
 	rotRect.center = (point.x, point.y)
 
 	window.blit(rotated, rotRect)
+
+def draw_text(text, position, size, color = (20,20,20)):
+	label = text_font.render(text, size, color)
+
+	# Center on point
+	rect = label.get_rect()
+	d1, d2 = rect.size
+	#p.transform(Point(d1/2.0, d2/2.0))
+	rect.center = (position.x, position.y)
+
+	window.blit(label, rect)
 
 # The game loop
 while True:
@@ -342,8 +415,18 @@ while True:
 	draw_image(bmps['boards']['standard.png'], pos.p1, -angle, 75)
 
 	# And player vector
-	pl = game.player_vector().relative_point(100)
+	pl = game.player_vector().relative_point(110)
 	pygame.draw.line(window, blue, p1, pl.coordinates(), 10)
+
+	# And the player
+	# pl = game.player_vector().scale_relative(150)
+	#if game.board.player > 0:
+	#	img = bmps['player']['front.png']
+	#else:
+	#	img = bmps['player']['back.png']
+	#angle = ((-pl.angle() + 90) % 360)
+
+	#draw_image(img, pl.relative_point(0.5), angle, pl.length())
 
 	# Show whether the player can push again
 	if game.board.last_pump > game.board.pump_delay:
@@ -356,13 +439,16 @@ while True:
 		rect = pygame.Rect(10, 10, 10, height)
 		pygame.draw.rect(window, color, rect)
 	else:
-		pygame.draw.circle(window, red, (20,20), 15, 0)
+		pygame.draw.circle(window, red, (20,20), 10, 0)
 
 	# Show current speed
 	text = str(int(game.board.speed()))
 	label = speed_font.render(text, 1, (250,240,245))
-	window.blit(label, (game_size[0] - 70, 50))
+	window.blit(label, (40, 5))
 
+	# Overlay texts
+	for t in game.texts:
+		draw_text(t.text, t.position, t.size, t.get_color())
 
 	#Handle events (single press, not hold)
 	for event in pygame.event.get():
