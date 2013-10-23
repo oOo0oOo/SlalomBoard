@@ -57,6 +57,30 @@ class SlalomBoard(object):
 			else:
 				self.player = self.max_lean
 
+	def pump_efficiency(self):
+		dir_vect = Vector(Point(0,0), self.direction)
+		velocity = dir_vect.length()
+
+		# Scale pumping (best pumping in curve at optimal pumping speed)
+
+		# check how vertical board is & scale to 0-1
+		verticality = 1 - ( abs(self.direction.x) / velocity )
+
+		# Check how much the player is leaning outwards scaled 0-1
+		leaning = abs(self.player) / self.max_lean
+
+		# Check the speed (is scaled according to normal distributed 
+		# around an optimal speed )
+		# This is achieved using the probability density function of the normal distribution
+		expo = (velocity - self.optimal_velocity)**2 / (2 * self.sigma**2)
+		speed = 1 / (math.sqrt(2 * math.pi * self.sigma**2))
+		speed *= math.exp(-expo)
+
+		# Scale the speed (value = 1 @ optimal velocity):
+		speed /= self.pump_scale
+
+		return verticality * leaning * speed
+
 	def pump(self):
 		if self.last_pump >= self.pump_delay:
 			self.last_pump = 0
@@ -64,26 +88,8 @@ class SlalomBoard(object):
 			dir_vect = Vector(Point(0,0), self.direction)
 			velocity = dir_vect.length()
 
-			# Scale pumping (best pumping in curve at optimal pumping speed)
+			pump = self.pump_efficiency() * self.max_pump
 
-			# check how vertical board is & scale to 0-1
-			verticality = 1 - ( abs(self.direction.x) / velocity )
-
-			# Check how much the player is leaning outwards scaled 0-1
-			leaning = abs(self.player) / self.max_lean
-
-			# Check the speed (is scaled according to normal distributed 
-			# around an optimal speed )
-			# This is achieved using the probability density function of the normal distribution
-			expo = (velocity - self.optimal_velocity)**2 / (2 * self.sigma**2)
-			speed = 1 / (math.sqrt(2 * math.pi * self.sigma**2))
-			speed *= math.exp(-expo)
-
-			# Scale the speed (value = 1 @ optimal velocity):
-			speed /= self.pump_scale
-
-			pump = verticality * leaning * speed * self.max_pump
-			
 			self.direction = dir_vect.scale_absolute(velocity + pump).vect
 
 	def on_tick(self):
@@ -338,7 +344,8 @@ while True:
 
 	# Show whether the player can push again
 	if game.board.last_pump > game.board.pump_delay:
-		color = green
+		g = 20 + int(235 * game.board.pump_efficiency())
+		color = pygame.Color(10, g, 10)
 	else:
 		color = red
 	pygame.draw.circle(window, color, (20,20), 15, 0)
