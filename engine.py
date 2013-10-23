@@ -25,7 +25,7 @@ class SlalomBoard(object):
 
 		#Pumping
 		self.max_pump = 7.5
-		self.pump_delay = 15 # in ticks @ 40ms
+		self.pump_delay = 25 # in ticks @ 40ms
 		self.optimal_velocity = 6
 		self.sigma = 7
 
@@ -83,8 +83,7 @@ class SlalomBoard(object):
 			speed /= self.pump_scale
 
 			pump = verticality * leaning * speed * self.max_pump
-
-			print 'PUMP: {}!!!!!'.format(pump)
+			
 			self.direction = dir_vect.scale_absolute(velocity + pump).vect
 
 	def on_tick(self):
@@ -269,6 +268,7 @@ white = pygame.Color(245, 245, 245)
 brown = pygame.Color(133, 60, 8)
 black = pygame.Color(5, 8, 7)
 red = pygame.Color(255, 30, 30)
+green = pygame.Color(20, 245, 18)
 blue = pygame.Color(5, 10, 145)
 
 # The slalom board
@@ -335,6 +335,14 @@ while True:
 	# And player vector
 	pl = game.player_vector().relative_point(100)
 	pygame.draw.line(window, blue, p1, pl.coordinates(), 10)
+
+	# Show whether the player can push again
+	if game.board.last_pump > game.board.pump_delay:
+		color = green
+	else:
+		color = red
+	pygame.draw.circle(window, color, (20,20), 15, 0)
+
 
 	#Handle events (single press, not hold)
 	for event in pygame.event.get():
