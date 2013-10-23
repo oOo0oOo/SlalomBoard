@@ -44,6 +44,9 @@ class SlalomBoard(object):
 		scaled =  self.board_vector().scale_absolute(10)
 		return scaled.normal_vector(-self.player)
 
+	def speed(self):
+		return Vector(self.position, self.direction).length()
+
 	def lean(self, left = True):
 		l = self.lean_vel
 		if left:
@@ -344,11 +347,16 @@ while True:
 
 	# Show whether the player can push again
 	if game.board.last_pump > game.board.pump_delay:
-		g = 20 + int(235 * game.board.pump_efficiency())
+		# A rectangle if pushing is possible
+		pump = game.board.pump_efficiency()
+		g = 20 + int(235 * pump)
+		height = 10 + int(50 * pump)
+
 		color = pygame.Color(10, g, 10)
+		rect = pygame.Rect(10, 10, 10, height)
+		pygame.draw.rect(window, color, rect)
 	else:
-		color = red
-	pygame.draw.circle(window, color, (20,20), 15, 0)
+		pygame.draw.circle(window, red, (20,20), 15, 0)
 
 
 	#Handle events (single press, not hold)
