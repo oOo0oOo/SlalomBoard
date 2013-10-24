@@ -16,18 +16,18 @@ class SlalomBoard(object):
 
 		# Board Parameters: Leaning
 		self.max_lean = 0.026
-		self.lean_vel = 0.0026
+		self.lean_vel = 0.0015
 
 		# Constant breaking & max speed
-		self.max_speed = 25
-		self.break_speed = 3
+		self.max_speed = 35
+		self.break_speed = 1
 		self.slowed = 0.05
 
 		#Pumping
 		self.max_pump = 5.5
 		self.pump_delay = 25 # in ticks @ 40ms
-		self.optimal_velocity = 7
-		self.sigma = 11
+		self.optimal_velocity = 8
+		self.sigma = 13
 
 		# Calculate value at maximum (probagbilty density function, see pump())
 		self.pump_scale = 1 / (math.sqrt(2*math.pi*self.sigma**2))
@@ -69,6 +69,7 @@ class SlalomBoard(object):
 		# check how vertical board is & scale to 0-1
 		verticality = 1 - ( abs(self.direction.x) / velocity )
 
+
 		# Check how much the player is leaning outwards scaled 0-1
 		leaning = abs(self.player) / self.max_lean
 
@@ -82,7 +83,7 @@ class SlalomBoard(object):
 		# Scale the speed (value = 1 @ optimal velocity):
 		speed /= self.pump_scale
 
-		return verticality * leaning * speed
+		return leaning * speed # * verticality
 
 	def pump(self):
 		if self.last_pump >= self.pump_delay:
@@ -204,8 +205,8 @@ class Game(object):
 		self.trail = []
 
 		# The create obstacle parameters
-		self.obstacle_prob = 0.03
-		self.obstacle_size = (10, 25)
+		self.obstacle_prob = 0.04
+		self.obstacle_size = (15, 40)
 		self.step_size = 10
 
 		self.last_random = 0
@@ -334,7 +335,7 @@ class Game(object):
 pygame.init()
 fpsClock = pygame.time.Clock()
 
-game_size = (550, 650)
+game_size = (1100, 710)
 middle = game_size[0]/2
 start_pos = game_size[1] / 4
 
