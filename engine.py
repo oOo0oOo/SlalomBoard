@@ -155,7 +155,7 @@ class CircularObstacle(object):
 
 
 class FloatingText(object):
-	def __init__(self, text, position, color = (245, 245, 245), stay = 100, fading = 20, size = 50, movement = Point(0, 0)):
+	def __init__(self, text, position, color = (245, 245, 245), stay = 100, fading = 20, font = 'helvetica', size = 50, movement = Point(0, 0)):
 		'''
 			stay indicates the number of frames the text stays.
 			fading sets the number of frames it should fade, such that it is gone after stay.
@@ -168,6 +168,7 @@ class FloatingText(object):
 		self.frames_left = stay
 		self.fading = fading
 		self.movement = movement
+		self.font = font
 
 		# used for fading
 		self.intensity = 1.0
@@ -185,6 +186,7 @@ class FloatingText(object):
 		# Scale color according to the intensity
 		color = [int(c * self.intensity) for c in self.color]
 		return tuple(color)
+
 
 
 class Game(object):
@@ -212,7 +214,7 @@ class Game(object):
 	def setup_game(self):
 		# Show player message
 		start = Point(self.start.x, self.size[1] - 50)
-		text = FloatingText('GO!!', start, (245, 50, 50), 350, 100, 100, Point(0, -1))
+		text = FloatingText('GO!!', start, (245, 50, 50), 350, 100, 'helvetica', 60, Point(0, -1))
 		self.texts.append(text)
 
 
@@ -233,17 +235,20 @@ class Game(object):
 			key = random.choice(bmps['potholes'].keys())
 			self.obstacles.append(CircularObstacle(Point(x, y), radius, bmps['potholes'][key]))
 
+
 	def remove_obstacles(self):
 		len_ob = len(self.obstacles)
 		for i, o in enumerate(reversed(self.obstacles)):
 			if o.position.y < - 50:
 				self.obstacles.pop(len_ob - i -1)
 
+
 	def remove_texts(self):
 		len_texts = len(self.texts)
 		for i, t in enumerate(reversed(self.texts)):
 			if t.frames_left == 0:
 				self.texts.pop(len_texts - i -1)
+
 
 	def update_markings(self):
 		self.markings = []
@@ -313,7 +318,7 @@ class Game(object):
 		if px >= self.last_milestone + 10000:
 			self.last_milestone = px
 			start = Point(self.size[0], self.size[1] - 50)
-			text = FloatingText('{}m'.format(px/100), start, (10, 10, 250), 150, 0, 50, Point(-3, 0))
+			text = FloatingText('{}m'.format(px/100), start, (10, 10, 250), 150, 0, 'helvetica', 50, Point(-3, 0))
 			self.texts.append(text)
 
 		# Clean up obstacles & floating texts
@@ -333,8 +338,8 @@ start_pos = game_size[1] / 4
 window = pygame.display.set_mode(game_size)
 pygame.display.set_caption('Slalom Boarding')
 
-speed_font = pygame.font.SysFont("helvetica", 30)
-text_font = pygame.font.SysFont("helvetica", 50)
+# speed_font = pygame.font.SysFont("helvetica", 30)
+
 
 # colors
 white = pygame.Color(245, 245, 245)
@@ -370,8 +375,9 @@ def draw_image(bmp, point, rotation = 0, size_x = 10):
 
 	window.blit(rotated, rotRect)
 
-def draw_text(text, position, size, color = (20,20,20)):
-	label = text_font.render(text, size, color)
+def draw_text(text, position, font = 'helvetica', size = 30, color = (250,240,245)):
+	fontObj = pygame.font.SysFont(font, size)
+	label = fontObj.render(text, 3, color)
 
 	# Center on point
 	rect = label.get_rect()
@@ -441,14 +447,15 @@ while True:
 	else:
 		pygame.draw.circle(window, red, (20,20), 10, 0)
 
-	# Show current speed
+	# Show current speed and fps
 	text = str(int(game.board.speed()))
-	label = speed_font.render(text, 1, (250,240,245))
-	window.blit(label, (40, 5))
+	draw_text(text, Point(55, 22), size = 30)
+	fps = str(int(fpsClock.get_fps())) + ' fps'
+	draw_text(fps, Point(game_size[0] - 50, 20), size = 25)
 
 	# Overlay texts
 	for t in game.texts:
-		draw_text(t.text, t.position, t.size, t.get_color())
+		draw_text(t.text, t.position, t.font, t.size, t.get_color())
 
 	#Handle events (single press, not hold)
 	for event in pygame.event.get():
