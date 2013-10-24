@@ -335,9 +335,10 @@ class Game(object):
 pygame.init()
 fpsClock = pygame.time.Clock()
 
+# The game size and the player start position
 game_size = (1100, 710)
 middle = game_size[0]/2
-start_pos = game_size[1] / 4
+start_pos = game_size[1] / 8
 
 window = pygame.display.set_mode(game_size)
 pygame.display.set_caption('Slalom Boarding')
