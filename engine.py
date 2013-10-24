@@ -3,7 +3,7 @@ import math
 import pygame
 import random
 from os import listdir
-from pygame.locals import QUIT, KEYDOWN, K_LEFT, K_RIGHT, K_DOWN
+from pygame.locals import QUIT, KEYDOWN, K_LEFT, K_RIGHT, K_SPACE, K_DOWN
 from geometry import Point, Vector
 
 
@@ -16,7 +16,7 @@ class SlalomBoard(object):
 
 		# Board Parameters: Leaning
 		self.max_lean = 0.026
-		self.lean_vel = 0.0027
+		self.lean_vel = 0.0026
 
 		# Constant breaking & max speed
 		self.max_speed = 25
@@ -24,10 +24,10 @@ class SlalomBoard(object):
 		self.slowed = 0.05
 
 		#Pumping
-		self.max_pump = 5
+		self.max_pump = 5.5
 		self.pump_delay = 25 # in ticks @ 40ms
-		self.optimal_velocity = 6
-		self.sigma = 10
+		self.optimal_velocity = 7
+		self.sigma = 11
 
 		# Calculate value at maximum (probagbilty density function, see pump())
 		self.pump_scale = 1 / (math.sqrt(2*math.pi*self.sigma**2))
@@ -204,6 +204,8 @@ class Game(object):
 		self.trail = []
 
 		# The create obstacle parameters
+		self.obstacle_prob = 0.03
+		self.obstacle_size = (10, 25)
 		self.step_size = 10
 
 		self.last_random = 0
@@ -214,7 +216,7 @@ class Game(object):
 	def setup_game(self):
 		# Show player message
 		start = Point(self.start.x, self.size[1] - 50)
-		text = FloatingText('GO!!', start, (245, 50, 50), 350, 100, 'helvetica', 60, Point(0, -1))
+		text = FloatingText('GO!!', start, (245, 10, 10), 350, 100, 'helvetica', 60, Point(0, -1))
 		self.texts.append(text)
 
 
@@ -258,7 +260,7 @@ class Game(object):
 		upper = int(self.size[1])
 
 		for i in range(pos - lower, pos + upper):
-			if not i % 200:
+			if not i % 220:
 				self.markings.append(i - pos)
 
 
@@ -312,7 +314,8 @@ class Game(object):
 		px = int(self.board.position.y)
 		if px > self.last_random + self.step_size:
 			self.last_random = px
-			self.random_obstacle(0.05, (10, 25))
+
+			self.random_obstacle(self.obstacle_prob, self.obstacle_size)
 
 		# Display how far player is
 		if px >= self.last_milestone + 10000:
@@ -331,7 +334,7 @@ class Game(object):
 pygame.init()
 fpsClock = pygame.time.Clock()
 
-game_size = (420, 650)
+game_size = (550, 650)
 middle = game_size[0]/2
 start_pos = game_size[1] / 4
 
@@ -393,7 +396,7 @@ while True:
 
 	# Draw road markings
 	for m in game.markings:
-		pygame.draw.line(window, white, (middle, m), (middle, m+80), 8)
+		pygame.draw.line(window, white, (middle, m), (middle, m+80), 10)
 
 	# Draw all the obstacles
 	for o in game.obstacles:
@@ -448,7 +451,7 @@ while True:
 		pygame.draw.circle(window, red, (20,20), 10, 0)
 
 	# Show current speed and fps
-	text = str(int(game.board.speed()))
+	text = str(int(round(game.board.speed())))
 	draw_text(text, Point(55, 22), size = 30)
 	fps = str(int(fpsClock.get_fps())) + ' fps'
 	draw_text(fps, Point(game_size[0] - 50, 20), size = 25)
@@ -462,7 +465,7 @@ while True:
 		if event.type == QUIT:
 			pygame.quit()
 			sys.exit()
-		elif event.type == KEYDOWN and event.key == K_DOWN:
+		elif event.type == KEYDOWN and event.key in [K_SPACE, K_DOWN]:
 			game.board.pump()
 	
 	# Check for pressed leaning keys
