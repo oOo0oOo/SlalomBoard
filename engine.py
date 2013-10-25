@@ -19,9 +19,10 @@ class SlalomBoard(object):
 		self.lean_vel = 0.0015
 
 		# Constant breaking & max speed
-		self.max_speed = 35
+		self.max_speed = 20
 		self.break_speed = 1
 		self.slowed = 0.05
+		self.jitter = 0.025 # How much is the player shaking, when max_speed is reached
 
 		#Pumping
 		self.max_pump = 5.5
@@ -121,14 +122,16 @@ class SlalomBoard(object):
 		vector = Vector(Point(0,0), new_dir)
 
 		#scale = -1
-		#if vector.length() > self.max_speed:
-		#	scale = self.max_speed - self.slowed
 		if vector.length() > self.break_speed:
 			scale = float(vector.length()) - self.slowed
 			new_dir = vector.scale_absolute(scale).vect
-			
-		#if scale != -1:
-		#	new_dir = vector.scale_absolute(scale).vect
+
+		if vector.length() > self.max_speed:
+			# Jitter player
+			change = random.uniform(-self.jitter, self.jitter) # * vector.length() / self.max_speed
+			if abs(self.player + change) < self.max_lean:
+				self.player += change
+
 
 		new_pos = self.position.transform(new_dir)
 
@@ -205,7 +208,7 @@ class Game(object):
 		self.trail = []
 
 		# The create obstacle parameters
-		self.obstacle_prob = 0.5
+		self.obstacle_prob = 0.04
 		self.obstacle_size = (15, 40)
 		self.step_size = 10
 
