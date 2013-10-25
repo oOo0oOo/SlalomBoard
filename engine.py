@@ -337,7 +337,7 @@ fpsClock = pygame.time.Clock()
 
 game_size = (1100, 710)
 middle = game_size[0]/2
-start_pos = game_size[1] / 4
+start_pos = game_size[1] / 8
 
 window = pygame.display.set_mode(game_size)
 pygame.display.set_caption('Slalom Boarding')
@@ -405,8 +405,9 @@ while True:
 			# pygame.draw.circle(window, white, [int(p) for p in o.position.coordinates()], o.radius, 0)
 			draw_image(o.img, o.position, o.rotation, o.radius * 2)
 		else:
-			width = (o.radius * 3) * (o.position.y - game_size[1]) / 500
-			pos = Point(o.position.x, game_size[1] - 20)
+			max_size = (o.radius * 2)
+			width = max_size - (max_size * (o.position.y - game_size[1]) / 500)
+			pos = Point(o.position.x, game_size[1] - 30)
 			draw_image(bmps['signs']['arrow_up.png'], pos, 0, width)
 			#pygame.draw.circle(window, white, [int(o.position.x), game_size[1] - 10], o.radius, 0)
 	
