@@ -205,7 +205,7 @@ class Game(object):
 		self.trail = []
 
 		# The create obstacle parameters
-		self.obstacle_prob = 0.04
+		self.obstacle_prob = 0.5
 		self.obstacle_size = (15, 40)
 		self.step_size = 10
 
@@ -233,7 +233,14 @@ class Game(object):
 		if random.random() < probability:
 			# Create a random circular obstacle (with pothole image)
 			y = self.size[1] + 500
-			x = random.randrange(0, self.size[1])
+
+			# Do not set obstacles in the middle or too far outside
+			x = random.randrange(30, (self.size[0] / 2) - 20)
+			if random.random()>0.5:
+				x = self.start.x - x
+			else:
+				x = self.start.x + x
+
 			radius = random.randrange(size[0], size[1]+1)
 			key = random.choice(bmps['potholes'].keys())
 			self.obstacles.append(CircularObstacle(Point(x, y), radius, bmps['potholes'][key]))
