@@ -19,9 +19,10 @@ class SlalomBoard(object):
 		self.lean_vel = 0.0015
 
 		# Constant breaking & max speed
-		self.max_speed = 35
+		self.max_speed = 20
 		self.break_speed = 1
 		self.slowed = 0.05
+		self.jitter = 0.025 # How much is the player shaking, when max_speed is reached
 
 		#Pumping
 		self.max_pump = 5.5
@@ -121,14 +122,16 @@ class SlalomBoard(object):
 		vector = Vector(Point(0,0), new_dir)
 
 		#scale = -1
-		#if vector.length() > self.max_speed:
-		#	scale = self.max_speed - self.slowed
 		if vector.length() > self.break_speed:
 			scale = float(vector.length()) - self.slowed
 			new_dir = vector.scale_absolute(scale).vect
-			
-		#if scale != -1:
-		#	new_dir = vector.scale_absolute(scale).vect
+
+		if vector.length() > self.max_speed:
+			# Jitter player
+			change = random.uniform(-self.jitter, self.jitter) # * vector.length() / self.max_speed
+			if abs(self.player + change) < self.max_lean:
+				self.player += change
+
 
 		new_pos = self.position.transform(new_dir)
 
@@ -138,11 +141,11 @@ class SlalomBoard(object):
 
 
 class CircularObstacle(object):
-	def __init__(self, position, radius, image):
+	def __init__(self, position, rotation, radius, image):
 		self.radius = radius
 		self.position = position
 		self.img = image
-		self.rotation = random.randrange(0, 360)
+		self.rotation = rotation
 
 	def on_tick(self, speed_y):
 		self.position.y -= speed_y
@@ -232,11 +235,20 @@ class Game(object):
 	def random_obstacle(self, probability = 0.01, size = (3, 20)):
 		if random.random() < probability:
 			# Create a random circular obstacle (with pothole image)
-			y = self.size[1] + 50
-			x = random.randrange(0, self.size[1])
+			y = self.size[1] + 500
+
+			# Do not set obstacles in the middle or too far outside
+			x = random.randrange(30, (self.size[0] / 2) - 20)
+			if random.random()>0.5:
+				x = self.start.x - x
+			else:
+				x = self.start.x + x
+
 			radius = random.randrange(size[0], size[1]+1)
+			rotation = random.randrange(0, 360)
+
 			key = random.choice(bmps['potholes'].keys())
-			self.obstacles.append(CircularObstacle(Point(x, y), radius, bmps['potholes'][key]))
+			self.obstacles.append(CircularObstacle(Point(x, y), rotation, radius, bmps['potholes'][key]))
 
 
 	def remove_obstacles(self):
@@ -358,7 +370,7 @@ blue = pygame.Color(5, 10, 145)
 game = Game(game_size, start_pos)
 
 # All the images
-bmps = {'potholes': {}, 'boards': {}, 'player': {}}
+bmps = {'potholes': {}, 'boards': {}, 'player': {}, 'signs': {}}
 
 for folder in bmps.keys():
 	path = 'img/' + folder + '/'
@@ -402,8 +414,15 @@ while True:
 
 	# Draw all the obstacles
 	for o in game.obstacles:
-		# pygame.draw.circle(window, white, [int(p) for p in o.position.coordinates()], o.radius, 0)
-		draw_image(o.img, o.position, o.rotation, o.radius * 2)
+		if o.position.y < game_size[1]:
+			# pygame.draw.circle(window, white, [int(p) for p in o.position.coordinates()], o.radius, 0)
+			draw_image(o.img, o.position, o.rotation, o.radius * 2)
+		else:
+			max_size = (o.radius * 2)
+			width = max_size - (max_size * (o.position.y - game_size[1]) / 500)
+			pos = Point(o.position.x, game_size[1] - 30)
+			draw_image(bmps['signs']['arrow_up.png'], pos, 0, width)
+			#pygame.draw.circle(window, white, [int(o.position.x), game_size[1] - 10], o.radius, 0)
 	
 	# Show trail
 	position = game.board.position
@@ -412,22 +431,13 @@ while True:
 		pygame.draw.circle(window, red, (int(point.x), int(y)), 1, 0)
 
 	# Show board vector
-	pos = game.board_vector().scale_absolute(20)
-
-	p1 = pos.p1.coordinates()
-	p2 = pos.p2.coordinates()
-	p3 = pos.relative_point(-1).coordinates()
-
-	# pygame.draw.circle(window, , [int(p) for p in p1], 5, 0)
-	#pygame.draw.line(window, brown, p1, p2, 5)
-	#pygame.draw.line(window, brown, p1, p3, 4)
-	
+	pos = game.board_vector().scale_absolute(20)	
 	angle = game.board_vector().angle()
 	draw_image(bmps['boards']['standard.png'], pos.p1, -angle, 75)
 
 	# And player vector
-	pl = game.player_vector().relative_point(110)
-	pygame.draw.line(window, blue, p1, pl.coordinates(), 10)
+	pl = game.player_vector()
+	pygame.draw.line(window, blue, pl.p1.coordinates(), pl.relative_point(110).coordinates(), 10)
 
 	# And the player
 	# pl = game.player_vector().scale_relative(150)
@@ -453,8 +463,15 @@ while True:
 		pygame.draw.circle(window, red, (20,20), 10, 0)
 
 	# Show current speed and fps
-	text = str(int(round(game.board.speed())))
-	draw_text(text, Point(55, 22), size = 30)
+	speed = game.board.speed()
+	text = str(int(round(speed)))
+
+	if speed > game.board.max_speed:
+		c = (245, 10, 10)
+	else:
+		c = (245, 245, 245)
+
+	draw_text(text, Point(55, 22), size = 30, color = c)
 	fps = str(int(fpsClock.get_fps())) + ' fps'
 	draw_text(fps, Point(game_size[0] - 50, 20), size = 25)
 
