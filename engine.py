@@ -428,22 +428,13 @@ while True:
 		pygame.draw.circle(window, red, (int(point.x), int(y)), 1, 0)
 
 	# Show board vector
-	pos = game.board_vector().scale_absolute(20)
-
-	p1 = pos.p1.coordinates()
-	p2 = pos.p2.coordinates()
-	p3 = pos.relative_point(-1).coordinates()
-
-	# pygame.draw.circle(window, , [int(p) for p in p1], 5, 0)
-	#pygame.draw.line(window, brown, p1, p2, 5)
-	#pygame.draw.line(window, brown, p1, p3, 4)
-	
+	pos = game.board_vector().scale_absolute(20)	
 	angle = game.board_vector().angle()
 	draw_image(bmps['boards']['standard.png'], pos.p1, -angle, 75)
 
 	# And player vector
-	pl = game.player_vector().relative_point(110)
-	pygame.draw.line(window, blue, p1, pl.coordinates(), 10)
+	pl = game.player_vector()
+	pygame.draw.line(window, blue, pl.p1.coordinates(), pl.relative_point(110).coordinates(), 10)
 
 	# And the player
 	# pl = game.player_vector().scale_relative(150)
@@ -469,8 +460,15 @@ while True:
 		pygame.draw.circle(window, red, (20,20), 10, 0)
 
 	# Show current speed and fps
-	text = str(int(round(game.board.speed())))
-	draw_text(text, Point(55, 22), size = 30)
+	speed = game.board.speed()
+	text = str(int(round(speed)))
+
+	if speed > game.board.max_speed:
+		c = (245, 10, 10)
+	else:
+		c = (245, 245, 245)
+
+	draw_text(text, Point(55, 22), size = 30, color = c)
 	fps = str(int(fpsClock.get_fps())) + ' fps'
 	draw_text(fps, Point(game_size[0] - 50, 20), size = 25)
 
