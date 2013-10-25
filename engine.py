@@ -141,11 +141,11 @@ class SlalomBoard(object):
 
 
 class CircularObstacle(object):
-	def __init__(self, position, radius, image):
+	def __init__(self, position, rotation, radius, image):
 		self.radius = radius
 		self.position = position
 		self.img = image
-		self.rotation = random.randrange(0, 360)
+		self.rotation = rotation
 
 	def on_tick(self, speed_y):
 		self.position.y -= speed_y
@@ -245,8 +245,10 @@ class Game(object):
 				x = self.start.x + x
 
 			radius = random.randrange(size[0], size[1]+1)
+			rotation = random.randrange(0, 360)
+
 			key = random.choice(bmps['potholes'].keys())
-			self.obstacles.append(CircularObstacle(Point(x, y), radius, bmps['potholes'][key]))
+			self.obstacles.append(CircularObstacle(Point(x, y), rotation, radius, bmps['potholes'][key]))
 
 
 	def remove_obstacles(self):
