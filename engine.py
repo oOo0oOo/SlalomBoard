@@ -232,7 +232,7 @@ class Game(object):
 	def random_obstacle(self, probability = 0.01, size = (3, 20)):
 		if random.random() < probability:
 			# Create a random circular obstacle (with pothole image)
-			y = self.size[1] + 50
+			y = self.size[1] + 500
 			x = random.randrange(0, self.size[1])
 			radius = random.randrange(size[0], size[1]+1)
 			key = random.choice(bmps['potholes'].keys())
@@ -357,7 +357,7 @@ blue = pygame.Color(5, 10, 145)
 game = Game(game_size, start_pos)
 
 # All the images
-bmps = {'potholes': {}, 'boards': {}, 'player': {}}
+bmps = {'potholes': {}, 'boards': {}, 'player': {}, 'signs': {}}
 
 for folder in bmps.keys():
 	path = 'img/' + folder + '/'
@@ -401,8 +401,14 @@ while True:
 
 	# Draw all the obstacles
 	for o in game.obstacles:
-		# pygame.draw.circle(window, white, [int(p) for p in o.position.coordinates()], o.radius, 0)
-		draw_image(o.img, o.position, o.rotation, o.radius * 2)
+		if o.position.y < game_size[1]:
+			# pygame.draw.circle(window, white, [int(p) for p in o.position.coordinates()], o.radius, 0)
+			draw_image(o.img, o.position, o.rotation, o.radius * 2)
+		else:
+			width = (o.radius * 3) * (o.position.y - game_size[1]) / 500
+			pos = Point(o.position.x, game_size[1] - 20)
+			draw_image(bmps['signs']['arrow_up.png'], pos, 0, width)
+			#pygame.draw.circle(window, white, [int(o.position.x), game_size[1] - 10], o.radius, 0)
 	
 	# Show trail
 	position = game.board.position
