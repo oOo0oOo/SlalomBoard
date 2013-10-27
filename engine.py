@@ -18,22 +18,25 @@ class SlalomBoard(object):
 		self.max_lean = 0.026
 		self.lean_vel = 0.0015
 
-		# Constant breaking & max speed
-		self.max_speed = 20
-		self.break_speed = 1
-		self.slowed = 0.05
+		# Max speed
+		self.max_speed = 24
 		self.jitter = 0.025 # How much is the player shaking, when max_speed is reached
 
+		# Breaking 
+		self.break_speed = 1
+		self.slowed = 0.05
+		self.break_effect = 0.8
+
 		#Pumping
-		self.max_pump = 5.5
-		self.pump_delay = 25 # in ticks @ 40ms
-		self.optimal_velocity = 8
+		self.max_pump = 4.5
+		self.pump_delay = 35 # in ticks @ 40ms
+		self.optimal_velocity = 10
 		self.sigma = 13
 
 		# Calculate value at maximum (probagbilty density function, see pump())
 		self.pump_scale = 1 / (math.sqrt(2*math.pi*self.sigma**2))
 
-		self.last_pump = self.pump_delay
+		self.pump_blocked = False
 
 
 	def board_vector(self):
@@ -48,15 +51,23 @@ class SlalomBoard(object):
 	def speed(self):
 		return self.board_vector().length()
 
+	def break_board(self):
+		scale = self.speed() - self.slowed
+		self.direction = self.board_vector().scale_absolute(scale).vect
+
 	def lean(self, left = True):
 		l = self.lean_vel
 		if left:
 			if self.player-l >= -self.max_lean:
+				if self.player > 0 and l > self.player:
+					self.pump_blocked = False
 				self.player -= l
 			else:
 				self.player = -self.max_lean
 		else:
 			if self.player+l <= self.max_lean:
+				if self.player < 0 and l > abs(self.player):
+					self.pump_blocked = False
 				self.player += l
 			else:
 				self.player = self.max_lean
@@ -87,8 +98,8 @@ class SlalomBoard(object):
 		return leaning * speed # * verticality
 
 	def pump(self):
-		if self.last_pump >= self.pump_delay:
-			self.last_pump = 0
+		if not self.pump_blocked:
+			self.pump_blocked = True
 
 			dir_vect = Vector(Point(0,0), self.direction)
 			velocity = dir_vect.length()
@@ -98,9 +109,6 @@ class SlalomBoard(object):
 			self.direction = dir_vect.scale_absolute(velocity + pump).vect
 
 	def on_tick(self):
-		# update last pump
-		self.last_pump += 1
-
 		# Scale the board according to 
 		board = self.board_vector()
 		#speed_scale = 1.5 *  board.length() * (1 - (board.length() / self.max_speed + 0.0001 ))
@@ -132,11 +140,43 @@ class SlalomBoard(object):
 			if abs(self.player + change) < self.max_lean:
 				self.player += change
 
-
 		new_pos = self.position.transform(new_dir)
 
 		self.direction = new_dir
 		self.position = new_pos
+
+
+class ConstantMoving(object):
+	def __init__(self, position, moving = Point(0,0), rotation = 0):
+		self.position = position
+		self.moving = moving
+		self.rotation = rotation
+
+	def on_tick(self, speed):
+		self.position = self.position.transform(self.moving)
+		self.position.y -= speed
+
+
+class Rectangular(ConstantMoving):
+	def __init__(self, position, moving, rotation, image, size_x = False):
+		ConstantMoving.__init__(self, position, moving, rotation)
+		self.img = image
+		self.size = image.get_size()
+		if size_x:
+			factor = float(size_x)/self.size[0]
+			self.size = [s * factor for s in self.size]
+
+	def on_tick(self, speed):
+		super(Rectangular, self).on_tick(speed)
+
+	def check_collision(self, point):
+		h_x = float(self.size[0])/2
+		h_y = float(self.size[1])/2
+		pos = self.position
+		if pos.x - h_x < point.x < pos.x + h_x and pos.y- h_y < point.y < pos.y + h_y:
+			return True
+		else:
+			return False
 
 
 
@@ -208,12 +248,13 @@ class Game(object):
 		self.trail = []
 
 		# The create obstacle parameters
-		self.obstacle_prob = 0.04
-		self.obstacle_size = (15, 40)
-		self.step_size = 10
+		self.obstacle_prob = 0.015
+		self.obstacle_size = (15, 22)
+		self.step_size = 20
 
 		self.last_random = 0
 		self.last_milestone = 0
+		self.speed_warning = 0
 
 		self.setup_game()
 
@@ -232,7 +273,7 @@ class Game(object):
 		return self.board.player_vector()
 
 
-	def random_obstacle(self, probability = 0.01, size = (3, 20)):
+	def random_pothole(self, probability = 0.01, size = (3, 20)):
 		if random.random() < probability:
 			# Create a random circular obstacle (with pothole image)
 			y = self.size[1] + 500
@@ -250,11 +291,33 @@ class Game(object):
 			key = random.choice(bmps['potholes'].keys())
 			self.obstacles.append(CircularObstacle(Point(x, y), rotation, radius, bmps['potholes'][key]))
 
+	def random_car(self, probability = 0.01, size = (20, 25), moving = (10, 14), forward = True):
+		if random.random() < probability:
+			size_x = random.randrange(size[0], size[1])
+
+			x = random.randrange(50, (self.size[0] / 2) - 50)
+			
+			if forward:
+				position = Point(self.start.x - x, self.size[1] + 500)
+				speed = Point(0, random.randrange(moving[0], moving[1]))
+				rotation = 0
+			else:
+				position = Point(self.start.x + x, self.size[1] + 500)
+				speed = Point(0, -random.randrange(moving[0], moving[1]))
+				rotation = 180
+
+			key = random.choice(bmps['cars'].keys())
+			image = bmps['cars'][key]
+
+			car = Rectangular(position, speed, rotation, image, random.randrange(size[0], size[1]))
+
+			self.obstacles.append(car)
+
 
 	def remove_obstacles(self):
 		len_ob = len(self.obstacles)
 		for i, o in enumerate(reversed(self.obstacles)):
-			if o.position.y < - 50:
+			if o.position.y < - 800:
 				self.obstacles.pop(len_ob - i -1)
 
 
@@ -296,12 +359,17 @@ class Game(object):
 
 		# Check collision of board with any obstacle
 		found = False
+		speed = -1
 		for ob in self.obstacles:
 			if ob.check_collision(board.p1):
-				found = True
-				break
+				if type(ob) == CircularObstacle:
+					speed = 5
+					break
+				elif type(ob) == Rectangular:
+					speed = 0.25
+					break
 
-		if found:
+		if speed != -1:
 			vector = Vector(Point(0,0), self.board.direction)
 			self.board.direction = vector.scale_absolute(5).vect
 
@@ -328,13 +396,27 @@ class Game(object):
 		if px > self.last_random + self.step_size:
 			self.last_random = px
 
-			self.random_obstacle(self.obstacle_prob, self.obstacle_size)
+			self.random_pothole(self.obstacle_prob, self.obstacle_size)
+
+			# Forward and backwards cars
+			self.random_car(probability = 0.007, size = (50, 75), moving = (8, 14))
+			self.random_car(0.005, (50, 75), (3, 8), False)
 
 		# Display how far player is
 		if px >= self.last_milestone + 10000:
 			self.last_milestone = px
 			start = Point(self.size[0], self.size[1] - 50)
 			text = FloatingText('{}m'.format(px/100), start, (10, 10, 250), 150, 0, 'helvetica', 50, Point(-3, 0))
+			self.texts.append(text)
+
+		# Show speed warning
+		if self.speed_warning:
+			self.speed_warning -= 1
+
+		if self.board_vector().length() > self.board.max_speed and not self.speed_warning:
+			self.speed_warning = 50
+			start = Point(self.start.x, self.size[1] - 50)
+			text = FloatingText('Too Fast!', start, (245, 5, 5), 200, 50, 'helvetica', 50, Point(0, -2))
 			self.texts.append(text)
 
 		# Clean up obstacles & floating texts
@@ -370,14 +452,15 @@ blue = pygame.Color(5, 10, 145)
 game = Game(game_size, start_pos)
 
 # All the images
-bmps = {'potholes': {}, 'boards': {}, 'player': {}, 'signs': {}}
+bmps = {'potholes': {}, 'boards': {}, 'player': {}, 'signs': {}, 'cars': {}}
 
 for folder in bmps.keys():
-	path = 'img/' + folder + '/'
+	path = 'img/' + folder + '/' 
 	files = [path + f for f in listdir(path)]
 	for f in listdir(path):
-		p = path + f
-		bmps[folder][f] = pygame.image.load(p)
+		if f[-4:] in ('.png', '.jpg'):
+			p = path + f
+			bmps[folder][f[:-4] ] = pygame.image.load(p)
 
 # Some drawing helpers
 def draw_image(bmp, point, rotation = 0, size_x = 10):
@@ -414,14 +497,19 @@ while True:
 
 	# Draw all the obstacles
 	for o in game.obstacles:
+		if type(o) == Rectangular:
+			size = o.size[0]
+		elif type(o) == CircularObstacle:
+			size = o.radius * 2
+
 		if o.position.y < game_size[1]:
 			# pygame.draw.circle(window, white, [int(p) for p in o.position.coordinates()], o.radius, 0)
-			draw_image(o.img, o.position, o.rotation, o.radius * 2)
+			
+			draw_image(o.img, o.position, o.rotation, size)
 		else:
-			max_size = (o.radius * 2)
-			width = max_size - (max_size * (o.position.y - game_size[1]) / 500)
+			width = size - (size * (o.position.y - game_size[1]) / 500)
 			pos = Point(o.position.x, game_size[1] - 30)
-			draw_image(bmps['signs']['arrow_up.png'], pos, 0, width)
+			draw_image(bmps['signs']['arrow_up'], pos, 0, width)
 			#pygame.draw.circle(window, white, [int(o.position.x), game_size[1] - 10], o.radius, 0)
 	
 	# Show trail
@@ -433,7 +521,7 @@ while True:
 	# Show board vector
 	pos = game.board_vector().scale_absolute(20)	
 	angle = game.board_vector().angle()
-	draw_image(bmps['boards']['standard.png'], pos.p1, -angle, 75)
+	draw_image(bmps['boards']['standard'], pos.p1, -angle, 75)
 
 	# And player vector
 	pl = game.player_vector()
@@ -442,15 +530,15 @@ while True:
 	# And the player
 	# pl = game.player_vector().scale_relative(150)
 	#if game.board.player > 0:
-	#	img = bmps['player']['front.png']
+	#	img = bmps['player']['front']
 	#else:
-	#	img = bmps['player']['back.png']
+	#	img = bmps['player']['back']
 	#angle = ((-pl.angle() + 90) % 360)
 
 	#draw_image(img, pl.relative_point(0.5), angle, pl.length())
 
 	# Show whether the player can push again
-	if game.board.last_pump > game.board.pump_delay:
+	if not game.board.pump_blocked:
 		# A rectangle if pushing is possible
 		pump = game.board.pump_efficiency()
 		g = 20 + int(235 * pump)
@@ -464,7 +552,7 @@ while True:
 
 	# Show current speed and fps
 	speed = game.board.speed()
-	text = str(int(round(speed)))
+	text = str(int(round(2 * speed)))
 
 	if speed > game.board.max_speed:
 		c = (245, 10, 10)
@@ -484,7 +572,7 @@ while True:
 		if event.type == QUIT:
 			pygame.quit()
 			sys.exit()
-		elif event.type == KEYDOWN and event.key in [K_SPACE, K_DOWN]:
+		elif event.type == KEYDOWN and event.key == K_SPACE:
 			game.board.pump()
 	
 	# Check for pressed leaning keys
@@ -493,6 +581,8 @@ while True:
 		game.board.lean(True)
 	if keys[K_RIGHT]:
 		game.board.lean(False)
+	if keys[K_DOWN]:
+		game.board.break_board()
 
 	pygame.display.update()
 
