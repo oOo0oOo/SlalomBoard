@@ -1,4 +1,3 @@
-import sys
 import math
 import pygame
 import random
@@ -582,7 +581,6 @@ def start_game(parameters):
 		for event in pygame.event.get():
 			if event.type == QUIT:
 				pygame.quit()
-				sys.exit()
 			elif event.type == KEYDOWN and event.key == K_SPACE:
 				game.board.pump()
 		
@@ -602,7 +600,7 @@ def start_game(parameters):
 		fpsClock.tick(40)
 
 if __name__ == '__main__':
-	
+
 	params = {	'size': (800, 650),
 				'start_pos': 8.0,
 				'obstacle_prob': 0.015,

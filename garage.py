@@ -1,4 +1,7 @@
 import wx
+import pickle
+from os import path
+
 import engine
 
 class DictPage(wx.Dialog):
@@ -200,12 +203,20 @@ class ConfigurationEditor(wx.Dialog):
 		# All the Buttons
 		button_sizer = wx.BoxSizer(wx.HORIZONTAL)
 		endless_btn = wx.Button(self, -1, 'Start Endless Game')
+		load_btn = wx.Button(self, -1, 'Load from file')
+		save_btn = wx.Button(self, -1, 'Save to file')
+
 		endless_btn.Bind(wx.EVT_BUTTON, self.start_endless)
-		button_sizer.Add(endless_btn)
+		load_btn.Bind(wx.EVT_BUTTON, self.load_configuration)
+		save_btn.Bind(wx.EVT_BUTTON, self.save_configuration)
+
+		button_sizer.Add(endless_btn, 0, wx.RIGHT, 10)
+		button_sizer.Add(load_btn, 0, wx.RIGHT, 10)
+		button_sizer.Add(save_btn, 0, wx.RIGHT, 10)
 
 		# Set up the main sizer
-		main_sizer.Add(lb_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 10)
-		main_sizer.Add(button_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 10)
+		main_sizer.Add(lb_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 15)
+		main_sizer.Add(button_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 25)
 		self.SetSizer(main_sizer)
 		self.Show()
 
@@ -231,6 +242,24 @@ class ConfigurationEditor(wx.Dialog):
 				current = False
 
 			self.selection[param] = current
+
+	def save_configuration(self, evt):
+		dlg = wx.FileDialog(self, 'Choose a filename', '', '', '*.conf', wx.SAVE)
+		if dlg.ShowModal() == wx.ID_OK:
+			filename = dlg.GetFilename()
+			dirname = dlg.GetDirectory()
+			filepath = path.join(dirname, filename)
+			pickle.dump(self.configuration, open(filepath, "w"))
+
+	def load_configuration(self, evt):
+		dlg = wx.FileDialog(self, 'Choose a file', '', '', '*.conf', wx.OPEN)
+		if dlg.ShowModal() == wx.ID_OK:
+			filename = dlg.GetFilename()
+			dirname = dlg.GetDirectory()
+			filepath = path.join(dirname, filename)
+
+			self.configuration = pickle.load(open(filepath, "r"))
+			self.update()
 
 	def add_btn_click(self, evt):
 		param = evt.GetEventObject().GetName()
