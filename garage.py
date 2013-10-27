@@ -11,7 +11,6 @@ class DictPage(wx.Dialog):
 		self.init_layout()
 
 	def init_layout(self):
-
 		# Title and close button
 		if self.title:
 			title = wx.StaticText(self, -1, self.title.upper())
@@ -107,7 +106,6 @@ class DictPage(wx.Dialog):
 		param = evt.GetEventObject().GetName()
 		dlg = DictPage(self.dictionary[param], param)
 		if dlg.ShowModal():
-			print dlg.dictionary
 			self.dictionary[param] = dlg.dictionary
 
 	def close(self, evt):
@@ -290,7 +288,7 @@ class ConfigurationEditor(wx.Dialog):
 
 if __name__ == '__main__':
 	app = wx.App(
-		#redirect=True,filename="editor_log.txt"
+		redirect=True,filename="editor_log.txt"
 	)
 
 	ConfigurationEditor()

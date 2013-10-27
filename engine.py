@@ -6,6 +6,9 @@ from os import listdir
 from pygame.locals import QUIT, KEYDOWN, K_LEFT, K_RIGHT, K_SPACE, K_DOWN
 from geometry import Point, Vector
 
+# Intialize pygame
+pygame.init()
+
 # All the images
 bmps = {'potholes': {}, 'boards': {}, 'player': {}, 'signs': {}, 'cars': {}}
 
@@ -446,9 +449,7 @@ class Game(object):
 ## Setting up pygame and the main gameloop
 # all the pygame stuff
 def start_game(parameters):
-	pygame.init()
 	fpsClock = pygame.time.Clock()
-
 	# The game size and the player start position
 	game_size = parameters['size']
 	middle = game_size[0]/2
@@ -601,6 +602,7 @@ def start_game(parameters):
 		fpsClock.tick(40)
 
 if __name__ == '__main__':
+	
 	params = {	'size': (800, 650),
 				'start_pos': 8.0,
 				'obstacle_prob': 0.015,
@@ -613,7 +615,7 @@ if __name__ == '__main__':
 					'jitter': 0.025, 'break_speed': 1, 'slowed': 0.05,
 					'break_effect': 1.5, 'max_pump': 4.5, 'optimal_velocity': 10,
 					'sigma': 13
-				},
-				
+					}
 				}
+
 	start_game(params)
