@@ -1,0 +1,9 @@
+# Gimp Folder
+gimp/
+
+# Compiled Python Files
+*.pyc
+
+# OS generated files #
+######################
+Thumbs.db
