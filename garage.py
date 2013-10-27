@@ -1,8 +1,125 @@
 import wx
 
+class DictPage(wx.Dialog):
+	def __init__(self, dictionary, title = ''):
+		self.dictionary = dictionary
+		self.title = title
+
+		wx.Dialog.__init__(self, None, -1, self.title.title(), size = (300, 500))
+
+		self.init_layout()
+
+	def init_layout(self):
+
+		# Title and close button
+		if self.title:
+			title = wx.StaticText(self, -1, self.title.upper())
+
+		# Close button
+		close_btn = wx.Button(self, -1, 'Close')
+		close_btn.Bind(wx.EVT_BUTTON, self.close)
+
+		# All the dict items
+		self.dict_items = {}
+
+		dict_sizer = wx.BoxSizer(wx.VERTICAL)
+
+		for param, value in sorted(self.dictionary.items()):
+			t = type(value)
+			ignore = False
+			# Int or float is a text ctrl
+			if t in [int, float]:
+				disp_param = wx.TextCtrl(self, -1, str(value), size=(55, 20))
+				items = disp_param
+
+			# Tuple returns a sizer with len(tuple) text fields
+			elif t == tuple:
+				disp_param = wx.BoxSizer(wx.HORIZONTAL)
+				items = []
+				for v in value: 
+					ctrl = wx.TextCtrl(self, -1, str(v), size=(30, 20))
+					disp_param.Add(ctrl, 0, wx.RIGHT, 10)
+					items.append(ctrl)
+
+			elif t == dict:
+				disp_param = wx.Button(self, -1, 'Expand', name = param)
+				disp_param.Bind(wx.EVT_BUTTON, self.show_dict)
+				items = False
+
+			else:
+				ignore = True
+
+			if not ignore:
+				if items:
+					self.dict_items[param] = items
+
+				# Layout parameter (title & params)
+				param_sizer = wx.BoxSizer(wx.HORIZONTAL)
+				param_sizer.Add(wx.StaticText(self, -1, param.title()), 0, wx.ALIGN_CENTER_VERTICAL)
+				param_sizer.Add(disp_param, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 20)
+
+				# Add to main sizer
+				dict_sizer.Add(param_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 5)	
+
+
+		# Assemble main sizer
+		main_sizer = wx.BoxSizer(wx.VERTICAL)
+
+		if self.title:
+			main_sizer.Add(title, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 15)
+
+		main_sizer.Add(dict_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL)
+		main_sizer.Add(close_btn, 0, wx.ALIGN_RIGHT, wx.ALL, 20)
+		self.SetSizer(main_sizer)
+		self.Layout()
+
+		# Reset size to main_sizer size
+		self.SetSize(main_sizer.GetSize())
+		self.Show(True)
+
+	def update_dict(self):
+		for p, v in self.dictionary.items():
+			ignore = False
+			t = type(v)
+			# The tuple can only contain either all ints or all floats
+			if t == tuple:
+				val = [i.GetLineText(0) for i in self.dict_items[p]]
+				if type(v) == int:
+					val = [int(va) for va in val]
+				# Else assumes float!!
+				else:
+					val = [float(va) for va in val]
+				val = tuple(val)
+
+			elif t == int:
+				val = int(self.dict_items[p].GetLineText(0))
+			elif t == float:
+				val = float(self.dict_items[p].GetLineText(0))
+
+			else:
+				ignore = True
+
+			if not ignore:
+				self.dictionary[p] = val
+
+	def show_dict(self, evt):
+		param = evt.GetEventObject().GetName()
+		dlg = DictPage(self.dictionary[param], param)
+		if dlg.ShowModal():
+			print dlg.dictionary
+			self.dictionary[param] = dlg.dictionary
+
+	def close(self, evt):
+		self.update_dict()
+
+		if self.IsModal():
+			self.EndModal(True)
+		else:
+			self.Close()
+
 class ConfigurationEditor(wx.Dialog):
 	def __init__(self):
-		wx.Dialog.__init__(self, None, title = 'SlalomBoard Configuration Editor', size=(640, 480))
+		wx.Dialog.__init__(self, None, title = 'SlalomBoard Garage', size=(640, 480))
 
 		# The complete current configuration is saved here
 		# This is an empty base level configuration 
@@ -22,7 +139,7 @@ class ConfigurationEditor(wx.Dialog):
 				'obstacle_size': (15, 22),
 				'step_size': 20,
 				'forward_cars': {'probability': 0.007, 'size': (50, 75), 'moving': (8, 14)},
-				'backwards_cars': {'probability': 0.005, 'size': (50, 75), 'moving': (3, 8), 'forward': False}
+				'backwards_cars': {'probability': 0.005, 'size': (50, 75), 'moving': (3, 8)}
 				}
 			}
 
@@ -39,7 +156,7 @@ class ConfigurationEditor(wx.Dialog):
 
 		# Define lb elements titles
 		titles = {'boards': 'Boards', 'endless': 'Endless Maps'}
-		
+
 		# Set up listbox displayed elements
 		# board (selection etc.)
 		self.lb_elements = {}
@@ -135,7 +252,16 @@ class ConfigurationEditor(wx.Dialog):
 		sel = self.selection[param]
 		if sel:
 			obj = self.configuration[param][sel]
-			print obj
+			if param in ('boards', 'endless'):
+				if param == 'boards':
+					title = 'Editing Board: ' + sel
+				else:
+					title = 'Editing Endless Map: ' + sel
+
+				dlg = DictPage(obj, title)
+
+				if dlg.ShowModal():
+					self.configuration[param][sel] = dlg.dictionary
 
 		self.update()
 

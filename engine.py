@@ -6,32 +6,43 @@ from os import listdir
 from pygame.locals import QUIT, KEYDOWN, K_LEFT, K_RIGHT, K_SPACE, K_DOWN
 from geometry import Point, Vector
 
+# All the images
+bmps = {'potholes': {}, 'boards': {}, 'player': {}, 'signs': {}, 'cars': {}}
+
+for folder in bmps.keys():
+	path = 'img/' + folder + '/' 
+	files = [path + f for f in listdir(path)]
+	for f in listdir(path):
+		if f[-4:] in ('.png', '.jpg'):
+			p = path + f
+			bmps[folder][f[:-4] ] = pygame.image.load(p)
+
 
 class SlalomBoard(object):
-	def __init__(self, position, direction):
-		self.start = position.copy()
-		self.position = position
-		self.direction = direction
+	def __init__(self, **parameters):
+
+		self.start = parameters['start'].copy()
+		self.position = self.start.copy()
+		self.direction = parameters['direction']
 		self.player = 0.0
 
 		# Board Parameters: Leaning
-		self.max_lean = 0.026
-		self.lean_vel = 0.0015
+		self.max_lean = parameters['max_lean']
+		self.lean_vel = parameters['lean_vel']
 
 		# Max speed
-		self.max_speed = 24
-		self.jitter = 0.025 # How much is the player shaking, when max_speed is reached
+		self.max_speed = parameters['max_speed']
+		self.jitter = parameters['jitter'] # How much is the player shaking, when max_speed is reached
 
 		# Breaking 
-		self.break_speed = 1
-		self.slowed = 0.05
-		self.break_effect = 0.8
+		self.break_speed = parameters['break_speed']
+		self.slowed = parameters['slowed']
+		self.break_effect = parameters['break_effect']
 
 		#Pumping
-		self.max_pump = 4.5
-		self.pump_delay = 35 # in ticks @ 40ms
-		self.optimal_velocity = 10
-		self.sigma = 13
+		self.max_pump = parameters['max_pump']
+		self.optimal_velocity = parameters['optimal_velocity']
+		self.sigma = parameters['sigma']
 
 		# Calculate value at maximum (probagbilty density function, see pump())
 		self.pump_scale = 1 / (math.sqrt(2*math.pi*self.sigma**2))
@@ -234,23 +245,32 @@ class FloatingText(object):
 
 
 class Game(object):
-	def __init__(self, size, start):
-		self.size = size
+	def __init__(self, parameters):
 
-		self.start = Point(size[0] / 2, start)
+		self.size = parameters['size']
+
+		self.start = Point(self.size[0] / 2, parameters['start_pos'])
 		direction = Point(0, 10)
 
-		self.board = SlalomBoard(self.start, direction)
+		# Add parameters to board dict
+		board_params = parameters['board']
+		board_params.update({'direction': Point(0, 5), 'start': self.start})
+
+		self.board = SlalomBoard(**board_params)
 
 		self.obstacles = []
 		self.texts = []
 		self.markings = []
 		self.trail = []
 
-		# The create obstacle parameters
-		self.obstacle_prob = 0.015
-		self.obstacle_size = (15, 22)
-		self.step_size = 20
+		# The obstacle parameters
+		self.step_size = parameters['step_size']
+		self.obstacle_prob = parameters['obstacle_prob']
+		self.obstacle_size = parameters['obstacle_size']
+
+		self.forward_cars = parameters['forward_cars']
+		self.backwards_cars = parameters['backwards_cars']
+		self.backwards_cars.update({'forward': False})
 
 		self.last_random = 0
 		self.last_milestone = 0
@@ -263,7 +283,6 @@ class Game(object):
 		start = Point(self.start.x, self.size[1] - 50)
 		text = FloatingText('GO!!', start, (245, 10, 10), 350, 100, 'helvetica', 60, Point(0, -1))
 		self.texts.append(text)
-
 
 	def board_vector(self):
 		return self.board.board_vector()
@@ -399,8 +418,9 @@ class Game(object):
 			self.random_pothole(self.obstacle_prob, self.obstacle_size)
 
 			# Forward and backwards cars
-			self.random_car(probability = 0.007, size = (50, 75), moving = (8, 14))
-			self.random_car(0.005, (50, 75), (3, 8), False)
+			self.random_car(**self.forward_cars)
+
+			self.random_car(**self.backwards_cars)
 
 		# Display how far player is
 		if px >= self.last_milestone + 10000:
@@ -426,166 +446,175 @@ class Game(object):
 
 ## Setting up pygame and the main gameloop
 # all the pygame stuff
-pygame.init()
-fpsClock = pygame.time.Clock()
+def start_game(parameters):
+	pygame.init()
+	fpsClock = pygame.time.Clock()
 
-# The game size and the player start position
-game_size = (1100, 710)
-middle = game_size[0]/2
-start_pos = game_size[1] / 8
+	# The game size and the player start position
+	game_size = parameters['size']
+	middle = game_size[0]/2
+	start_pos = game_size[1] / parameters['start_pos']
+	parameters.update({'start_pos': start_pos})
 
-window = pygame.display.set_mode(game_size)
-pygame.display.set_caption('Slalom Boarding')
+	window = pygame.display.set_mode(game_size)
+	pygame.display.set_caption('Slalom Boarding')
 
-# speed_font = pygame.font.SysFont("helvetica", 30)
+	# speed_font = pygame.font.SysFont("helvetica", 30)
 
 
-# colors
-white = pygame.Color(245, 245, 245)
-brown = pygame.Color(133, 60, 8)
-black = pygame.Color(5, 8, 7)
-red = pygame.Color(255, 30, 30)
-green = pygame.Color(20, 245, 18)
-blue = pygame.Color(5, 10, 145)
+	# colors
+	white = pygame.Color(245, 245, 245)
+	brown = pygame.Color(133, 60, 8)
+	black = pygame.Color(5, 8, 7)
+	red = pygame.Color(255, 30, 30)
+	green = pygame.Color(20, 245, 18)
+	blue = pygame.Color(5, 10, 145)
 
-# The slalom board
-game = Game(game_size, start_pos)
+	# Create the game instance
+	game = Game(parameters)
 
-# All the images
-bmps = {'potholes': {}, 'boards': {}, 'player': {}, 'signs': {}, 'cars': {}}
+	# Some drawing helpers
+	def draw_image(bmp, point, rotation = 0, size_x = 10):
+		scale = float(size_x) / bmp.get_size()[0]
+		# Rotozoom image
+		rotated = pygame.transform.rotozoom(bmp, rotation, scale)
 
-for folder in bmps.keys():
-	path = 'img/' + folder + '/' 
-	files = [path + f for f in listdir(path)]
-	for f in listdir(path):
-		if f[-4:] in ('.png', '.jpg'):
-			p = path + f
-			bmps[folder][f[:-4] ] = pygame.image.load(p)
+		#get the rect of the rotated surf and set it's center to the oldCenter
+		rotRect = rotated.get_rect()
+		d1, d2 = rotRect.size
+		rotRect.center = (point.x, point.y)
 
-# Some drawing helpers
-def draw_image(bmp, point, rotation = 0, size_x = 10):
-	scale = float(size_x) / bmp.get_size()[0]
-	# Rotozoom image
-	rotated = pygame.transform.rotozoom(bmp, rotation, scale)
+		window.blit(rotated, rotRect)
 
-	#get the rect of the rotated surf and set it's center to the oldCenter
-	rotRect = rotated.get_rect()
-	d1, d2 = rotRect.size
-	rotRect.center = (point.x, point.y)
+	def draw_text(text, position, font = 'helvetica', size = 30, color = (250,240,245)):
+		fontObj = pygame.font.SysFont(font, size)
+		label = fontObj.render(text, 3, color)
 
-	window.blit(rotated, rotRect)
+		# Center on point
+		rect = label.get_rect()
+		d1, d2 = rect.size
+		#p.transform(Point(d1/2.0, d2/2.0))
+		rect.center = (position.x, position.y)
 
-def draw_text(text, position, font = 'helvetica', size = 30, color = (250,240,245)):
-	fontObj = pygame.font.SysFont(font, size)
-	label = fontObj.render(text, 3, color)
+		window.blit(label, rect)
 
-	# Center on point
-	rect = label.get_rect()
-	d1, d2 = rect.size
-	#p.transform(Point(d1/2.0, d2/2.0))
-	rect.center = (position.x, position.y)
+	# The game loop
+	while True:
+		window.fill(black)
 
-	window.blit(label, rect)
+		# Draw road markings
+		for m in game.markings:
+			pygame.draw.line(window, white, (middle, m), (middle, m+80), 10)
 
-# The game loop
-while True:
-	window.fill(black)
+		# Draw all the obstacles
+		for o in game.obstacles:
+			if type(o) == Rectangular:
+				size = o.size[0]
+			elif type(o) == CircularObstacle:
+				size = o.radius * 2
 
-	# Draw road markings
-	for m in game.markings:
-		pygame.draw.line(window, white, (middle, m), (middle, m+80), 10)
+			if o.position.y < game_size[1]:
+				# pygame.draw.circle(window, white, [int(p) for p in o.position.coordinates()], o.radius, 0)
+				
+				draw_image(o.img, o.position, o.rotation, size)
+			else:
+				width = size - (size * (o.position.y - game_size[1]) / 500)
+				pos = Point(o.position.x, game_size[1] - 30)
+				draw_image(bmps['signs']['arrow_up'], pos, 0, width)
+				#pygame.draw.circle(window, white, [int(o.position.x), game_size[1] - 10], o.radius, 0)
+		
+		# Show trail
+		position = game.board.position
+		for i, point in enumerate(reversed(game.trail)):
+			y =  point.y - position.y + start_pos
+			pygame.draw.circle(window, red, (int(point.x), int(y)), 1, 0)
 
-	# Draw all the obstacles
-	for o in game.obstacles:
-		if type(o) == Rectangular:
-			size = o.size[0]
-		elif type(o) == CircularObstacle:
-			size = o.radius * 2
+		# Show board vector
+		pos = game.board_vector().scale_absolute(20)	
+		angle = game.board_vector().angle()
+		draw_image(bmps['boards']['standard'], pos.p1, -angle, 75)
 
-		if o.position.y < game_size[1]:
-			# pygame.draw.circle(window, white, [int(p) for p in o.position.coordinates()], o.radius, 0)
-			
-			draw_image(o.img, o.position, o.rotation, size)
+		# And player vector
+		pl = game.player_vector()
+		pygame.draw.line(window, blue, pl.p1.coordinates(), pl.relative_point(110).coordinates(), 10)
+
+		# And the player
+		# pl = game.player_vector().scale_relative(150)
+		#if game.board.player > 0:
+		#	img = bmps['player']['front']
+		#else:
+		#	img = bmps['player']['back']
+		#angle = ((-pl.angle() + 90) % 360)
+
+		#draw_image(img, pl.relative_point(0.5), angle, pl.length())
+
+		# Show whether the player can push again
+		if not game.board.pump_blocked:
+			# A rectangle if pushing is possible
+			pump = game.board.pump_efficiency()
+			g = 20 + int(235 * pump)
+			height = 10 + int(50 * pump)
+
+			color = pygame.Color(10, g, 10)
+			rect = pygame.Rect(10, 10, 10, height)
+			pygame.draw.rect(window, color, rect)
 		else:
-			width = size - (size * (o.position.y - game_size[1]) / 500)
-			pos = Point(o.position.x, game_size[1] - 30)
-			draw_image(bmps['signs']['arrow_up'], pos, 0, width)
-			#pygame.draw.circle(window, white, [int(o.position.x), game_size[1] - 10], o.radius, 0)
-	
-	# Show trail
-	position = game.board.position
-	for i, point in enumerate(reversed(game.trail)):
-		y =  point.y - position.y + start_pos
-		pygame.draw.circle(window, red, (int(point.x), int(y)), 1, 0)
+			pygame.draw.circle(window, red, (20,20), 10, 0)
 
-	# Show board vector
-	pos = game.board_vector().scale_absolute(20)	
-	angle = game.board_vector().angle()
-	draw_image(bmps['boards']['standard'], pos.p1, -angle, 75)
+		# Show current speed and fps
+		speed = game.board.speed()
+		text = str(int(round(2 * speed)))
 
-	# And player vector
-	pl = game.player_vector()
-	pygame.draw.line(window, blue, pl.p1.coordinates(), pl.relative_point(110).coordinates(), 10)
+		if speed > game.board.max_speed:
+			c = (245, 10, 10)
+		else:
+			c = (245, 245, 245)
 
-	# And the player
-	# pl = game.player_vector().scale_relative(150)
-	#if game.board.player > 0:
-	#	img = bmps['player']['front']
-	#else:
-	#	img = bmps['player']['back']
-	#angle = ((-pl.angle() + 90) % 360)
+		draw_text(text, Point(55, 22), size = 30, color = c)
+		fps = str(int(fpsClock.get_fps())) + ' fps'
+		draw_text(fps, Point(game_size[0] - 50, 20), size = 25)
 
-	#draw_image(img, pl.relative_point(0.5), angle, pl.length())
+		# Overlay texts
+		for t in game.texts:
+			draw_text(t.text, t.position, t.font, t.size, t.get_color())
 
-	# Show whether the player can push again
-	if not game.board.pump_blocked:
-		# A rectangle if pushing is possible
-		pump = game.board.pump_efficiency()
-		g = 20 + int(235 * pump)
-		height = 10 + int(50 * pump)
+		#Handle events (single press, not hold)
+		for event in pygame.event.get():
+			if event.type == QUIT:
+				pygame.quit()
+				sys.exit()
+			elif event.type == KEYDOWN and event.key == K_SPACE:
+				game.board.pump()
+		
+		# Check for pressed leaning keys
+		keys = pygame.key.get_pressed()
+		if keys[K_LEFT]:
+			game.board.lean(True)
+		if keys[K_RIGHT]:
+			game.board.lean(False)
+		if keys[K_DOWN]:
+			game.board.break_board()
 
-		color = pygame.Color(10, g, 10)
-		rect = pygame.Rect(10, 10, 10, height)
-		pygame.draw.rect(window, color, rect)
-	else:
-		pygame.draw.circle(window, red, (20,20), 10, 0)
+		pygame.display.update()
 
-	# Show current speed and fps
-	speed = game.board.speed()
-	text = str(int(round(2 * speed)))
+		game.on_tick()
 
-	if speed > game.board.max_speed:
-		c = (245, 10, 10)
-	else:
-		c = (245, 245, 245)
+		fpsClock.tick(40)
 
-	draw_text(text, Point(55, 22), size = 30, color = c)
-	fps = str(int(fpsClock.get_fps())) + ' fps'
-	draw_text(fps, Point(game_size[0] - 50, 20), size = 25)
-
-	# Overlay texts
-	for t in game.texts:
-		draw_text(t.text, t.position, t.font, t.size, t.get_color())
-
-	#Handle events (single press, not hold)
-	for event in pygame.event.get():
-		if event.type == QUIT:
-			pygame.quit()
-			sys.exit()
-		elif event.type == KEYDOWN and event.key == K_SPACE:
-			game.board.pump()
-	
-	# Check for pressed leaning keys
-	keys = pygame.key.get_pressed()
-	if keys[K_LEFT]:
-		game.board.lean(True)
-	if keys[K_RIGHT]:
-		game.board.lean(False)
-	if keys[K_DOWN]:
-		game.board.break_board()
-
-	pygame.display.update()
-
-	game.on_tick()
-
-	fpsClock.tick(40)
+if __name__ == '__main__':
+	params = {	'size': (800, 650),
+				'start_pos': 8.0,
+				'obstacle_prob': 0.015,
+				'obstacle_size': (15, 22),
+				'step_size': 20,
+				'forward_cars': {'probability': 0.007, 'size': (50, 75), 'moving': (8, 14)},
+				'backwards_cars': {'probability': 0.005, 'size': (50, 75), 'moving': (3, 8)},
+				'board': {
+					'max_lean': 0.026, 'lean_vel': 0.0015, 'max_speed': 24,
+					'jitter': 0.025, 'break_speed': 1, 'slowed': 0.05,
+					'break_effect': 1.5, 'max_pump': 4.5, 'optimal_velocity': 10,
+					'sigma': 13
+				},
+				
+				}
+	start_game(params)
