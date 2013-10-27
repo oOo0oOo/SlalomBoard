@@ -1,4 +1,5 @@
 import wx
+import engine
 
 class DictPage(wx.Dialog):
 	def __init__(self, dictionary, title = ''):
@@ -198,7 +199,15 @@ class ConfigurationEditor(wx.Dialog):
 
 			lb_sizer.Add(self.lb_elements[param], 0, wx.RIGHT, 10)
 
+		# All the Buttons
+		button_sizer = wx.BoxSizer(wx.HORIZONTAL)
+		endless_btn = wx.Button(self, -1, 'Start Endless Game')
+		endless_btn.Bind(wx.EVT_BUTTON, self.start_endless)
+		button_sizer.Add(endless_btn)
+
+		# Set up the main sizer
 		main_sizer.Add(lb_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 10)
+		main_sizer.Add(button_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 10)
 		self.SetSizer(main_sizer)
 		self.Show()
 
@@ -265,10 +274,23 @@ class ConfigurationEditor(wx.Dialog):
 
 		self.update()
 
+	def start_endless(self, evt):
+		if self.selection['boards'] and self.selection['endless']:
+			board_params = self.configuration['boards'][self.selection['boards']]
+			map_params = self.configuration['endless'][self.selection['endless']]
+			params = {'size': (800, 650),'start_pos': 8.0,}
+
+			# Verschachtelung
+			map_params['board'] = board_params
+			params.update(map_params)
+
+			# Start the game
+			engine.start_game(params)
+
 
 if __name__ == '__main__':
 	app = wx.App(
-		redirect=True,filename="editor_log.txt"
+		#redirect=True,filename="editor_log.txt"
 	)
 
 	ConfigurationEditor()

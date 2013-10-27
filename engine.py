@@ -243,7 +243,6 @@ class FloatingText(object):
 		return tuple(color)
 
 
-
 class Game(object):
 	def __init__(self, parameters):
 
