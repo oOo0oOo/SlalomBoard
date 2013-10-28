@@ -247,7 +247,7 @@ class FloatingText(object):
 
 class Game(object):
 	def __init__(self, parameters):
-
+		self.parameters = parameters
 		self.size = parameters['size']
 
 		self.start = Point(self.size[0] / 2, parameters['start_pos'])
@@ -256,7 +256,6 @@ class Game(object):
 		# Add parameters to board dict
 		board_params = parameters['board']
 		board_params.update({'direction': Point(0, 5), 'start': self.start})
-
 		self.board = SlalomBoard(**board_params)
 
 		self.obstacles = []
@@ -264,6 +263,26 @@ class Game(object):
 		self.markings = []
 		self.trail = []
 
+		self.last_random = 0
+		self.last_milestone = 0
+		self.speed_warning = 0
+
+		self.setup_game()
+
+	def setup_game(self):
+		# Setup parameters (position 0 are initial parameters)
+		self.set_parameters(self.parameters['map'][0])
+		# and remove parameters
+		del self.parameters['map'][0]
+		if self.parameters['map']:
+			self.next_upd = min(self.parameters['map'].keys())
+
+		# Show player message
+		start = Point(self.start.x, self.size[1] - 50)
+		text = FloatingText('GO!!', start, (245, 10, 10), 350, 100, 'helvetica', 60, Point(0, -1))
+		self.texts.append(text)
+
+	def set_parameters(self, parameters):
 		# The obstacle parameters
 		self.step_size = parameters['step_size']
 		self.obstacle_prob = parameters['obstacle_prob']
@@ -273,17 +292,6 @@ class Game(object):
 		self.backwards_cars = parameters['backwards_cars']
 		self.backwards_cars.update({'forward': False})
 
-		self.last_random = 0
-		self.last_milestone = 0
-		self.speed_warning = 0
-
-		self.setup_game()
-
-	def setup_game(self):
-		# Show player message
-		start = Point(self.start.x, self.size[1] - 50)
-		text = FloatingText('GO!!', start, (245, 10, 10), 350, 100, 'helvetica', 60, Point(0, -1))
-		self.texts.append(text)
 
 	def board_vector(self):
 		return self.board.board_vector()
@@ -316,13 +324,21 @@ class Game(object):
 			size_x = random.randrange(size[0], size[1])
 
 			x = random.randrange(50, (self.size[0] / 2) - 50)
+
+			forw_pos = self.size[1] + 200
+			rev_pos = -200
 			
 			if forward:
-				position = Point(self.start.x - x, self.size[1] + 500)
 				speed = Point(0, random.randrange(moving[0], moving[1]))
+
+				if self.board.speed() > speed.y or random.random() < 0.5:
+					position = Point(self.start.x - x, forw_pos)
+				else:
+					position = Point(self.start.x - x, rev_pos)
 				rotation = 90
+
 			else:
-				position = Point(self.start.x + x, self.size[1] + 500)
+				position = Point(self.start.x + x, forw_pos)
 				speed = Point(0, -random.randrange(moving[0], moving[1]))
 				rotation = 270
 
@@ -416,12 +432,20 @@ class Game(object):
 		if px > self.last_random + self.step_size:
 			self.last_random = px
 
+			# Potholes (obstacles)
 			self.random_pothole(self.obstacle_prob, self.obstacle_size)
-
 			# Forward and backwards cars
 			self.random_car(**self.forward_cars)
-
 			self.random_car(**self.backwards_cars)
+
+		# Check if next map update is due
+		if self.parameters['map']:
+			if px > self.next_upd:
+				self.set_parameters(self.parameters['map'][self.next_upd])
+				del self.parameters['map'][self.next_upd]	
+
+				if self.parameters['map']:
+					self.next_upd = min(self.parameters['map'].keys())	
 
 		# Display how far player is
 		if px >= self.last_milestone + 10000:
@@ -458,9 +482,6 @@ def start_game(parameters):
 	window = pygame.display.set_mode(game_size)
 	pygame.display.set_caption('Slalom Boarding')
 
-	# speed_font = pygame.font.SysFont("helvetica", 30)
-
-
 	# colors
 	white = pygame.Color(245, 245, 245)
 	brown = pygame.Color(133, 60, 8)
@@ -492,7 +513,6 @@ def start_game(parameters):
 		# Center on point
 		rect = label.get_rect()
 		d1, d2 = rect.size
-		#p.transform(Point(d1/2.0, d2/2.0))
 		rect.center = (position.x, position.y)
 
 		window.blit(label, rect)
@@ -603,11 +623,21 @@ if __name__ == '__main__':
 
 	params = {	'size': (800, 650),
 				'start_pos': 8.0,
-				'obstacle_prob': 0.015,
-				'obstacle_size': (15, 22),
-				'step_size': 20,
-				'forward_cars': {'probability': 0.007, 'size': (50, 75), 'moving': (8, 14)},
-				'backwards_cars': {'probability': 0.005, 'size': (50, 75), 'moving': (3, 8)},
+				'map': {0: {
+					'obstacle_prob': 0.015,
+					'obstacle_size': (15, 22),
+					'step_size': 20,
+					'forward_cars': {'probability': 0.007, 'size': (50, 75), 'moving': (8, 14)},
+					'backwards_cars': {'probability': 0.005, 'size': (50, 75), 'moving': (3, 8)}
+					},
+					10000: {
+					'obstacle_prob': 0.001,
+					'obstacle_size': (15, 22),
+					'step_size': 20,
+					'forward_cars': {'probability': 0.1, 'size': (80, 100), 'moving': (8, 14)},
+					'backwards_cars': {'probability': 0.1, 'size': (80, 100), 'moving': (3, 8)}
+					}
+					},
 				'board': {
 					'max_lean': 0.026, 'lean_vel': 0.0015, 'max_speed': 24,
 					'jitter': 0.025, 'break_speed': 1, 'slowed': 0.05,
