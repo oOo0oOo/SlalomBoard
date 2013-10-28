@@ -9,7 +9,7 @@ from geometry import Point, Vector
 pygame.init()
 
 # All the images
-bmps = {'potholes': {}, 'boards': {}, 'player': {}, 'signs': {}, 'cars': {}}
+bmps = {'potholes': {}, 'boards': {}, 'player': {}, 'signs': {}, 'cars': {}, 'ramps': {}}
 
 for folder in bmps.keys():
 	path = 'img/' + folder + '/' 
@@ -192,6 +192,10 @@ class Rectangular(ConstantMoving):
 			return False
 
 
+class Ramp(Rectangular):
+	def __init__ (self, position, moving, rotation, image, size_x = False):
+		Rectangular.__init__(self, position, moving, rotation, image, size_x)
+
 
 class CircularObstacle(object):
 	def __init__(self, position, rotation, radius, image):
@@ -279,7 +283,7 @@ class Game(object):
 
 		# Show player message
 		start = Point(self.start.x, self.size[1] - 50)
-		text = FloatingText('GO!!', start, (245, 10, 10), 350, 100, 'helvetica', 60, Point(0, -1))
+		text = FloatingText('GO GO GO!!', start, (245, 10, 10), 350, 100, 'helvetica', 60, Point(0, -1))
 		self.texts.append(text)
 
 	def set_parameters(self, parameters):
@@ -287,6 +291,8 @@ class Game(object):
 		self.step_size = parameters['step_size']
 		self.obstacle_prob = parameters['obstacle_prob']
 		self.obstacle_size = parameters['obstacle_size']
+
+		self.ramps = parameters['ramps']
 
 		self.forward_cars = parameters['forward_cars']
 		self.backwards_cars = parameters['backwards_cars']
@@ -299,6 +305,18 @@ class Game(object):
 
 	def player_vector(self):
 		return self.board.player_vector()
+
+
+	def random_ramp(self, probability = 0.01, size = (40, 60)):
+		if random.random() < probability:
+			y = self.size[1] + 500
+			x = random.randrange(0, self.size[0])
+
+			width = random.randrange(size[0], size[1])
+			rotation = 0
+
+			key = random.choice(bmps['ramps'].keys())
+			self.obstacles.append(Ramp(Point(x, y), Point(0,0), rotation, bmps['ramps'][key], width))
 
 
 	def random_pothole(self, probability = 0.01, size = (3, 20)):
@@ -353,7 +371,7 @@ class Game(object):
 	def remove_obstacles(self):
 		len_ob = len(self.obstacles)
 		for i, o in enumerate(reversed(self.obstacles)):
-			if o.position.y < - 800:
+			if o.position.y < - 500 or o.position.y > 2 * self.size[1]:
 				self.obstacles.pop(len_ob - i -1)
 
 
@@ -401,13 +419,18 @@ class Game(object):
 				if type(ob) == CircularObstacle:
 					speed = 5
 					break
+
+				elif type(ob) == Ramp:
+					print 'Hit Ramp'
+					break
+
 				elif type(ob) == Rectangular:
-					speed = 0.25
+					speed = 1
 					break
 
 		if speed != -1:
 			vector = Vector(Point(0,0), self.board.direction)
-			self.board.direction = vector.scale_absolute(5).vect
+			self.board.direction = vector.scale_absolute(speed).vect
 
 	def on_tick(self):
 		# Advance board
@@ -437,6 +460,8 @@ class Game(object):
 			# Forward and backwards cars
 			self.random_car(**self.forward_cars)
 			self.random_car(**self.backwards_cars)
+			# Ramps
+			self.random_ramp(**self.ramps)
 
 		# Check if next map update is due
 		if self.parameters['map']:
@@ -541,7 +566,7 @@ def start_game(parameters):
 
 		# Draw all the obstacles
 		for o in game.obstacles:
-			if type(o) == Rectangular:
+			if type(o) in (Rectangular, Ramp):
 				size = o.size[0]
 			elif type(o) == CircularObstacle:
 				size = o.radius * 2
@@ -643,17 +668,20 @@ if __name__ == '__main__':
 	params = {	'size': (900, 650),
 				'border_size': 75,
 				'start_pos': 8.0,
+				'gravity': 10,
 				'map': {0: {
 					'obstacle_prob': 0.015,
 					'obstacle_size': (15, 22),
 					'step_size': 20,
+					'ramps': {'probability': 0.005, 'size': (80, 110)},
 					'forward_cars': {'probability': 0.007, 'size': (50, 75), 'moving': (8, 14)},
 					'backwards_cars': {'probability': 0.005, 'size': (50, 75), 'moving': (3, 8)}
 					},
 					10000: {
 					'obstacle_prob': 0.5,
 					'obstacle_size': (30, 40),
-					'step_size': 20,
+					'step_size': 20
+					'ramps': {'probability': 0.1, 'size': (50, 75)},
 					'forward_cars': {'probability': 0.5, 'size': (80, 100), 'moving': (8, 14)},
 					'backwards_cars': {'probability': 0.5, 'size': (80, 100), 'moving': (3, 8)}
 					}

@@ -173,7 +173,7 @@ class ConfigurationEditor(wx.Dialog):
 		# The complete current configuration is saved here
 		# This is an empty base level configuration 
 		self.configuration = {'boards': {}, 'endless': {}, 'semi_random': {},
-		'general': {'size': (900, 650),'start_pos': 8.0, 'border_size': 75}}
+		'general': {'size': (900, 650),'start_pos': 8.0, 'gravity': 10, 'border_size': 75}}
 
 		# This Represents Model DataStructures for each configuration item
 		self.model_conf = {
@@ -188,6 +188,7 @@ class ConfigurationEditor(wx.Dialog):
 				'obstacle_prob': 0.015,
 				'obstacle_size': (15, 22),
 				'step_size': 20,
+				'ramps': {'probability': 0.005, 'size': (80, 120)},
 				'forward_cars': {'probability': 0.007, 'size': (50, 75), 'moving': (8, 14)},
 				'backwards_cars': {'probability': 0.005, 'size': (50, 75), 'moving': (3, 8)}
 				},
