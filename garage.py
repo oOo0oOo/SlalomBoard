@@ -5,9 +5,22 @@ from os import path
 import engine
 
 class DictPage(wx.Dialog):
-	def __init__(self, dictionary, title = ''):
-		self.dictionary = dictionary
+	def __init__(self, dictionary, title = '', default_adds = {}, key_type = str):
+		'''
+			When using adds: Only one key type allowed. 
+			default_adds have to use str as keys.
+		'''
+		# Convert all keys to key_type!!
+		self.dictionary = {key_type(k): v for k, v in dictionary.items()}
+
+		if not all([(type(a) in (int, float, dict, tuple)) for _, a in default_adds.items()]):
+			raise ValueError('Only int, float, dict and tuple can be added.')
+
 		self.title = title
+		self.default_adds = default_adds
+		self.key_type = key_type
+		
+		self.dict_items = {}
 
 		wx.Dialog.__init__(self, None, -1, self.title.title(), size = (300, 500))
 
@@ -22,12 +35,20 @@ class DictPage(wx.Dialog):
 		close_btn = wx.Button(self, -1, 'Close')
 		close_btn.Bind(wx.EVT_BUTTON, self.close)
 
-		# All the dict items
+		if self.default_adds:
+			add_btn = wx.Button(self, -1, 'Add Element')
+			add_btn.Bind(wx.EVT_BUTTON, self.add_element)
+
+		# Reset all the dict items
+		[v.Destroy() for v in self.dict_items.values()]
 		self.dict_items = {}
 
 		dict_sizer = wx.BoxSizer(wx.VERTICAL)
 
-		for param, value in sorted(self.dictionary.items()):
+		for parameter, value in sorted(self.dictionary.items()):
+			# Convert param to str
+			param = str(parameter)
+
 			t = type(value)
 			ignore = False
 			# Int or float is a text ctrl
@@ -54,7 +75,7 @@ class DictPage(wx.Dialog):
 
 			if not ignore:
 				if items:
-					self.dict_items[param] = items
+					self.dict_items[parameter] = items
 
 				# Layout parameter (title & params)
 				param_sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -66,19 +87,41 @@ class DictPage(wx.Dialog):
 
 
 		# Assemble main sizer
-		main_sizer = wx.BoxSizer(wx.VERTICAL)
+		main_sizer = self.GetSizer()
+		if main_sizer:
+			main_sizer.Clear(True)
+		else:
+			main_sizer = wx.BoxSizer(wx.VERTICAL)
 
 		if self.title:
 			main_sizer.Add(title, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 15)
 
 		main_sizer.Add(dict_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL)
+		if self.default_adds:
+			main_sizer.Add(add_btn, 0, wx.ALIGN_RIGHT, wx.ALL, 10)
+
 		main_sizer.Add(close_btn, 0, wx.ALIGN_RIGHT, wx.ALL, 20)
+
 		self.SetSizer(main_sizer)
 		self.Layout()
 
 		# Reset size to main_sizer size
-		self.SetSize(main_sizer.GetSize())
-		self.Show(True)
+		# self.SetSize(main_sizer.GetSize())
+		# self.Show()
+		self.Refresh()
+
+	def add_element(self, evt):
+		dlg = wx.TextEntryDialog(self, 'Enter a Key','Enter Key')
+		if dlg.ShowModal() == wx.ID_OK:
+			k = self.key_type(dlg.GetValue())
+
+			dlg2 = wx.SingleChoiceDialog(self, '', 'Choose a Value', choices = self.default_adds.keys())
+			if dlg2.ShowModal():
+				element = dlg2.GetStringSelection()
+
+				#Update dictionary
+				self.dictionary[k] = self.default_adds[element]
+				self.init_layout()
 
 	def update_dict(self):
 		for p, v in self.dictionary.items():
@@ -107,7 +150,7 @@ class DictPage(wx.Dialog):
 
 	def show_dict(self, evt):
 		param = evt.GetEventObject().GetName()
-		dlg = DictPage(self.dictionary[param], param)
+		dlg = DictPage(self.dictionary[self.key_type(param)], param)
 		if dlg.ShowModal():
 			self.dictionary[param] = dlg.dictionary
 
@@ -125,7 +168,7 @@ class ConfigurationEditor(wx.Dialog):
 
 		# The complete current configuration is saved here
 		# This is an empty base level configuration 
-		self.configuration = {'boards': {}, 'endless': {}}
+		self.configuration = {'boards': {}, 'endless': {}, 'semi_random': {}}
 
 		# This Represents Model DataStructures for each configuration item
 		self.model_conf = {
@@ -142,7 +185,8 @@ class ConfigurationEditor(wx.Dialog):
 				'step_size': 20,
 				'forward_cars': {'probability': 0.007, 'size': (50, 75), 'moving': (8, 14)},
 				'backwards_cars': {'probability': 0.005, 'size': (50, 75), 'moving': (3, 8)}
-				}
+				},
+			'semi_random': {}
 			}
 
 		# Current Selection
@@ -157,7 +201,7 @@ class ConfigurationEditor(wx.Dialog):
 		'''
 
 		# Define lb elements titles
-		titles = {'boards': 'Boards', 'endless': 'Endless Maps'}
+		titles = {'boards': 'Boards', 'endless': 'Elements', 'semi_random': 'Maps'}
 
 		# Set up listbox displayed elements
 		# board (selection etc.)
@@ -202,15 +246,18 @@ class ConfigurationEditor(wx.Dialog):
 
 		# All the Buttons
 		button_sizer = wx.BoxSizer(wx.HORIZONTAL)
-		endless_btn = wx.Button(self, -1, 'Start Endless Game')
+		endless_btn = wx.Button(self, -1, 'Play Element')
+		play_btn = wx.Button(self, -1, 'Play Map')
 		load_btn = wx.Button(self, -1, 'Load from file')
 		save_btn = wx.Button(self, -1, 'Save to file')
 
 		endless_btn.Bind(wx.EVT_BUTTON, self.start_endless)
 		load_btn.Bind(wx.EVT_BUTTON, self.load_configuration)
+		play_btn.Bind(wx.EVT_BUTTON, self.start_map)
 		save_btn.Bind(wx.EVT_BUTTON, self.save_configuration)
 
 		button_sizer.Add(endless_btn, 0, wx.RIGHT, 10)
+		button_sizer.Add(play_btn, 0, wx.RIGHT, 10)
 		button_sizer.Add(load_btn, 0, wx.RIGHT, 10)
 		button_sizer.Add(save_btn, 0, wx.RIGHT, 10)
 
@@ -225,7 +272,7 @@ class ConfigurationEditor(wx.Dialog):
 			This updates all the dynamic values in the UI.
 		'''
 
-		for p in ['boards', 'endless']:
+		for p in ['boards', 'endless', 'semi_random']:
 			names = self.configuration[p].keys()
 			self.lb_elements[p].Clear()
 			[self.lb_elements[p].Append(n) for n in names]
@@ -292,12 +339,20 @@ class ConfigurationEditor(wx.Dialog):
 				if param == 'boards':
 					title = 'Editing Board: ' + sel
 				else:
-					title = 'Editing Endless Map: ' + sel
+					title = 'Editing Element: ' + sel
 
 				dlg = DictPage(obj, title)
 
 				if dlg.ShowModal():
 					self.configuration[param][sel] = dlg.dictionary
+
+			elif param == 'semi_random':
+				title = 'Editing Map: ' + sel
+				# A map is just a dict {y_position: element}
+				dlg = DictPage(obj, title, self.configuration['endless'], int)
+				if dlg.ShowModal():
+					self.configuration[param][sel] = dlg.dictionary
+
 
 		self.update()
 
@@ -314,10 +369,13 @@ class ConfigurationEditor(wx.Dialog):
 			# Start the game
 			engine.start_game(params)
 
+	def start_map(self, evt):
+		pass
+
 
 if __name__ == '__main__':
 	app = wx.App(
-		redirect=True,filename="editor_log.txt"
+		# redirect=True,filename="editor_log.txt"
 	)
 
 	ConfigurationEditor()

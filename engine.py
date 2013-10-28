@@ -320,11 +320,11 @@ class Game(object):
 			if forward:
 				position = Point(self.start.x - x, self.size[1] + 500)
 				speed = Point(0, random.randrange(moving[0], moving[1]))
-				rotation = 0
+				rotation = 90
 			else:
 				position = Point(self.start.x + x, self.size[1] + 500)
 				speed = Point(0, -random.randrange(moving[0], moving[1]))
-				rotation = 180
+				rotation = 270
 
 			key = random.choice(bmps['cars'].keys())
 			image = bmps['cars'][key]
