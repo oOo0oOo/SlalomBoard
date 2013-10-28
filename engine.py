@@ -248,7 +248,7 @@ class FloatingText(object):
 class Game(object):
 	def __init__(self, parameters):
 		self.parameters = parameters
-		self.size = parameters['size']
+		self.size = parameters['street_size']
 
 		self.start = Point(self.size[0] / 2, parameters['start_pos'])
 		direction = Point(0, 10)
@@ -325,7 +325,7 @@ class Game(object):
 
 			x = random.randrange(50, (self.size[0] / 2) - 50)
 
-			forw_pos = self.size[1] + 200
+			forw_pos = self.size[1] + 300
 			rev_pos = -200
 			
 			if forward:
@@ -472,11 +472,19 @@ class Game(object):
 ## Setting up pygame and the main gameloop
 # all the pygame stuff
 def start_game(parameters):
+	pygame.init()
 	fpsClock = pygame.time.Clock()
 	# The game size and the player start position
 	game_size = parameters['size']
-	middle = game_size[0]/2
-	start_pos = game_size[1] / parameters['start_pos']
+
+	# board_size is minus the border
+	parameters['street_size'] = (game_size[0] - 2 * parameters['border_size'], game_size[1])
+	
+	# transpose vector:
+	t_vect = Point(parameters['border_size'], 0)
+
+	middle = game_size[0] / 2
+	start_pos = parameters['street_size'][1] / parameters['start_pos']
 	parameters.update({'start_pos': start_pos})
 
 	window = pygame.display.set_mode(game_size)
@@ -487,7 +495,8 @@ def start_game(parameters):
 	brown = pygame.Color(133, 60, 8)
 	black = pygame.Color(5, 8, 7)
 	red = pygame.Color(255, 30, 30)
-	green = pygame.Color(20, 245, 18)
+	green = pygame.Color(28, 100, 22)
+	bright_green = pygame.Color(20, 245, 18)
 	blue = pygame.Color(5, 10, 145)
 
 	# Create the game instance
@@ -501,7 +510,7 @@ def start_game(parameters):
 
 		#get the rect of the rotated surf and set it's center to the oldCenter
 		rotRect = rotated.get_rect()
-		d1, d2 = rotRect.size
+		point = point.transform(t_vect)
 		rotRect.center = (point.x, point.y)
 
 		window.blit(rotated, rotRect)
@@ -512,14 +521,19 @@ def start_game(parameters):
 
 		# Center on point
 		rect = label.get_rect()
-		d1, d2 = rect.size
+		# position = position.transform(t_vect)
 		rect.center = (position.x, position.y)
 
 		window.blit(label, rect)
 
 	# The game loop
 	while True:
+		# Draw Street and Borders
 		window.fill(black)
+		b1 = pygame.Rect(0, 0, parameters['border_size'], game_size[1])
+		b2 = pygame.Rect(game_size[0] - parameters['border_size'], 0, parameters['border_size'], game_size[1])
+		pygame.draw.rect(window, green, b1)
+		pygame.draw.rect(window, green, b2)
 
 		# Draw road markings
 		for m in game.markings:
@@ -533,9 +547,8 @@ def start_game(parameters):
 				size = o.radius * 2
 
 			if o.position.y < game_size[1]:
-				# pygame.draw.circle(window, white, [int(p) for p in o.position.coordinates()], o.radius, 0)
-				
 				draw_image(o.img, o.position, o.rotation, size)
+
 			else:
 				width = size - (size * (o.position.y - game_size[1]) / 500)
 				pos = Point(o.position.x, game_size[1] - 30)
@@ -545,16 +558,17 @@ def start_game(parameters):
 		# Show trail
 		position = game.board.position
 		for i, point in enumerate(reversed(game.trail)):
+			point = point.transform(t_vect)
 			y =  point.y - position.y + start_pos
 			pygame.draw.circle(window, red, (int(point.x), int(y)), 1, 0)
 
 		# Show board vector
-		pos = game.board_vector().scale_absolute(20)	
+		pos = game.board_vector().scale_absolute(20)# .transform(t_vect)	
 		angle = game.board_vector().angle()
 		draw_image(bmps['boards']['standard'], pos.p1, -angle, 75)
 
 		# And player vector
-		pl = game.player_vector()
+		pl = game.player_vector().transform(t_vect)
 		pygame.draw.line(window, blue, pl.p1.coordinates(), pl.relative_point(110).coordinates(), 10)
 
 		# And the player
@@ -575,53 +589,59 @@ def start_game(parameters):
 			height = 10 + int(50 * pump)
 
 			color = pygame.Color(10, g, 10)
-			rect = pygame.Rect(10, 10, 10, height)
+			rect = pygame.Rect(parameters['border_size'] + 10, 10, 10, height)
 			pygame.draw.rect(window, color, rect)
 		else:
-			pygame.draw.circle(window, red, (20,20), 10, 0)
+			pygame.draw.circle(window, red, (parameters['border_size'] + 20,20), 10, 0)
 
 		# Show current speed and fps
 		speed = game.board.speed()
 		text = str(int(round(2 * speed)))
-
 		if speed > game.board.max_speed:
 			c = (245, 10, 10)
 		else:
 			c = (245, 245, 245)
+		draw_text(text, Point(parameters['border_size'] + 55, 22), size = 30, color = c)
 
-		draw_text(text, Point(55, 22), size = 30, color = c)
 		fps = str(int(fpsClock.get_fps())) + ' fps'
-		draw_text(fps, Point(game_size[0] - 50, 20), size = 25)
+		draw_text(fps, Point(game_size[0] - parameters['border_size'], 20), size = 25)
 
 		# Overlay texts
 		for t in game.texts:
-			draw_text(t.text, t.position, t.font, t.size, t.get_color())
+			draw_text(t.text, t.position.transform(t_vect), t.font, t.size, t.get_color())
 
 		#Handle events (single press, not hold)
+		quitted = False
 		for event in pygame.event.get():
 			if event.type == QUIT:
 				pygame.quit()
+				quitted = True
+
 			elif event.type == KEYDOWN and event.key == K_SPACE:
 				game.board.pump()
 		
-		# Check for pressed leaning keys
-		keys = pygame.key.get_pressed()
-		if keys[K_LEFT]:
-			game.board.lean(True)
-		if keys[K_RIGHT]:
-			game.board.lean(False)
-		if keys[K_DOWN]:
-			game.board.break_board()
+		if quitted:
+			break
+		else:
+			# Check for pressed leaning keys
+			keys = pygame.key.get_pressed()
+			if keys[K_LEFT]:
+				game.board.lean(True)
+			if keys[K_RIGHT]:
+				game.board.lean(False)
+			if keys[K_DOWN]:
+				game.board.break_board()
 
-		pygame.display.update()
+			pygame.display.update()
 
-		game.on_tick()
+			game.on_tick()
 
-		fpsClock.tick(40)
+			fpsClock.tick(40)
 
 if __name__ == '__main__':
 
-	params = {	'size': (800, 650),
+	params = {	'size': (900, 650),
+				'border_size': 75,
 				'start_pos': 8.0,
 				'map': {0: {
 					'obstacle_prob': 0.015,
@@ -631,11 +651,11 @@ if __name__ == '__main__':
 					'backwards_cars': {'probability': 0.005, 'size': (50, 75), 'moving': (3, 8)}
 					},
 					10000: {
-					'obstacle_prob': 0.001,
-					'obstacle_size': (15, 22),
+					'obstacle_prob': 0.5,
+					'obstacle_size': (30, 40),
 					'step_size': 20,
-					'forward_cars': {'probability': 0.1, 'size': (80, 100), 'moving': (8, 14)},
-					'backwards_cars': {'probability': 0.1, 'size': (80, 100), 'moving': (3, 8)}
+					'forward_cars': {'probability': 0.5, 'size': (80, 100), 'moving': (8, 14)},
+					'backwards_cars': {'probability': 0.5, 'size': (80, 100), 'moving': (3, 8)}
 					}
 					},
 				'board': {

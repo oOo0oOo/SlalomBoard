@@ -1,6 +1,7 @@
 import wx
 import pickle
 from os import path
+from copy import deepcopy
 
 import engine
 
@@ -11,7 +12,10 @@ class DictPage(wx.Dialog):
 			default_adds have to use str as keys.
 		'''
 		# Convert all keys to key_type!!
-		self.dictionary = {key_type(k): v for k, v in dictionary.items()}
+		self.dictionary = deepcopy(dictionary)
+
+		if key_type not in [str, int, float]:
+			raise ValueError('key_type has to be str, int or float.')
 
 		if not all([(type(a) in (int, float, dict, tuple)) for _, a in default_adds.items()]):
 			raise ValueError('Only int, float, dict and tuple can be added.')
@@ -61,7 +65,7 @@ class DictPage(wx.Dialog):
 				disp_param = wx.BoxSizer(wx.HORIZONTAL)
 				items = []
 				for v in value: 
-					ctrl = wx.TextCtrl(self, -1, str(v), size=(30, 20))
+					ctrl = wx.TextCtrl(self, -1, str(v), size=(50, 20))
 					disp_param.Add(ctrl, 0, wx.RIGHT, 10)
 					items.append(ctrl)
 
@@ -130,7 +134,7 @@ class DictPage(wx.Dialog):
 			# The tuple can only contain either all ints or all floats
 			if t == tuple:
 				val = [i.GetLineText(0) for i in self.dict_items[p]]
-				if type(v) == int:
+				if type(v[0]) == int:
 					val = [int(va) for va in val]
 				# Else assumes float!!
 				else:
@@ -168,7 +172,8 @@ class ConfigurationEditor(wx.Dialog):
 
 		# The complete current configuration is saved here
 		# This is an empty base level configuration 
-		self.configuration = {'boards': {}, 'endless': {}, 'semi_random': {}}
+		self.configuration = {'boards': {}, 'endless': {}, 'semi_random': {},
+		'general': {'size': (900, 650),'start_pos': 8.0, 'border_size': 75}}
 
 		# This Represents Model DataStructures for each configuration item
 		self.model_conf = {
@@ -246,20 +251,23 @@ class ConfigurationEditor(wx.Dialog):
 
 		# All the Buttons
 		button_sizer = wx.BoxSizer(wx.HORIZONTAL)
+		general_btn = wx.Button(self, -1, 'General Configuration')
 		endless_btn = wx.Button(self, -1, 'Play Element')
 		play_btn = wx.Button(self, -1, 'Play Map')
 		load_btn = wx.Button(self, -1, 'Load from file')
 		save_btn = wx.Button(self, -1, 'Save to file')
 
+		general_btn.Bind(wx.EVT_BUTTON, self.open_general)
 		endless_btn.Bind(wx.EVT_BUTTON, self.start_endless)
 		load_btn.Bind(wx.EVT_BUTTON, self.load_configuration)
 		play_btn.Bind(wx.EVT_BUTTON, self.start_map)
 		save_btn.Bind(wx.EVT_BUTTON, self.save_configuration)
 
+		button_sizer.Add(general_btn, 0, wx.RIGHT, 10)
 		button_sizer.Add(endless_btn, 0, wx.RIGHT, 10)
 		button_sizer.Add(play_btn, 0, wx.RIGHT, 10)
 		button_sizer.Add(load_btn, 0, wx.RIGHT, 10)
-		button_sizer.Add(save_btn, 0, wx.RIGHT, 10)
+		button_sizer.Add(save_btn, 0, wx.RIGHT)
 
 		# Set up the main sizer
 		main_sizer.Add(lb_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 15)
@@ -308,6 +316,11 @@ class ConfigurationEditor(wx.Dialog):
 			self.configuration = pickle.load(open(filepath, "r"))
 			self.update()
 
+	def open_general(self, evt):
+		dlg = DictPage(self.configuration['general'], 'general configuration')
+		if dlg.ShowModal():
+			self.configuration['general'] = dlg.dictionary
+
 	def add_btn_click(self, evt):
 		param = evt.GetEventObject().GetName()
 		dlg = wx.TextEntryDialog(self, 'Enter a Name','Enter Name')
@@ -320,7 +333,6 @@ class ConfigurationEditor(wx.Dialog):
 				self.configuration[param][name] = self.model_conf[param]
 
 		self.update()
-
 
 	def remove_btn_click(self, evt):
 		param = evt.GetEventObject().GetName()
@@ -360,17 +372,27 @@ class ConfigurationEditor(wx.Dialog):
 		if self.selection['boards'] and self.selection['endless']:
 			board_params = self.configuration['boards'][self.selection['boards']]
 			map_params = self.configuration['endless'][self.selection['endless']]
-			params = {'size': (800, 650),'start_pos': 8.0,}
+			params = deepcopy(self.configuration['general'])
 
 			# Verschachtelung
-			map_params['board'] = board_params
-			params.update(map_params)
+			params['board'] = deepcopy(board_params)
+			params['map'] = {0: deepcopy(map_params)}
 
 			# Start the game
 			engine.start_game(params)
 
 	def start_map(self, evt):
-		pass
+		if self.selection['boards'] and self.selection['semi_random']:
+			board_params = self.configuration['boards'][self.selection['boards']]
+			map_params = self.configuration['semi_random'][self.selection['semi_random']]
+			params = deepcopy(self.configuration['general'])
+
+			# Verschachtelung
+			params['board'] = deepcopy(board_params)
+			params['map'] = deepcopy(map_params)
+			
+			# Start the game
+			engine.start_game(params)
 
 
 if __name__ == '__main__':
