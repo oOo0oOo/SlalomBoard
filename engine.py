@@ -421,7 +421,7 @@ class Game(object):
 					break
 
 				elif type(ob) == Ramp:
-					print 'Hit Ramp'
+					speed = 20
 					break
 
 				elif type(ob) == Rectangular:
@@ -673,14 +673,14 @@ if __name__ == '__main__':
 					'obstacle_prob': 0.015,
 					'obstacle_size': (15, 22),
 					'step_size': 20,
-					'ramps': {'probability': 0.005, 'size': (80, 110)},
+					'ramps': {'probability': 0.0, 'size': (80, 110)},
 					'forward_cars': {'probability': 0.007, 'size': (50, 75), 'moving': (8, 14)},
 					'backwards_cars': {'probability': 0.005, 'size': (50, 75), 'moving': (3, 8)}
 					},
 					10000: {
 					'obstacle_prob': 0.5,
 					'obstacle_size': (30, 40),
-					'step_size': 20
+					'step_size': 20,
 					'ramps': {'probability': 0.1, 'size': (50, 75)},
 					'forward_cars': {'probability': 0.5, 'size': (80, 100), 'moving': (8, 14)},
 					'backwards_cars': {'probability': 0.5, 'size': (80, 100), 'moving': (3, 8)}
