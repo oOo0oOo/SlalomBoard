@@ -281,11 +281,6 @@ class Game(object):
 		if self.parameters['map']:
 			self.next_upd = min(self.parameters['map'].keys())
 
-		# Show player message
-		start = Point(self.start.x, self.size[1] - 50)
-		text = FloatingText('GO GO GO!!', start, (245, 10, 10), 350, 100, 'helvetica', 60, Point(0, -1))
-		self.texts.append(text)
-
 	def set_parameters(self, parameters):
 		# The obstacle parameters
 		self.step_size = parameters['step_size']
@@ -297,6 +292,12 @@ class Game(object):
 		self.forward_cars = parameters['forward_cars']
 		self.backwards_cars = parameters['backwards_cars']
 		self.backwards_cars.update({'forward': False})
+
+		if parameters['message']:
+			start = Point(self.start.x, self.size[1] - 50)
+			text = FloatingText(parameters['message'], start, (245, 245, 245), 350, 100, 'helvetica', 60, Point(0, -2))
+			self.texts.append(text)
+
 
 
 	def board_vector(self):
@@ -466,11 +467,13 @@ class Game(object):
 		# Check if next map update is due
 		if self.parameters['map']:
 			if px > self.next_upd:
+				# Set new parameters
 				self.set_parameters(self.parameters['map'][self.next_upd])
-				del self.parameters['map'][self.next_upd]	
+				del self.parameters['map'][self.next_upd]
 
 				if self.parameters['map']:
-					self.next_upd = min(self.parameters['map'].keys())	
+					self.next_upd = min(self.parameters['map'].keys())
+
 
 		# Display how far player is
 		if px >= self.last_milestone + 10000:
@@ -675,12 +678,14 @@ if __name__ == '__main__':
 					'step_size': 20,
 					'ramps': {'probability': 0.0, 'size': (80, 110)},
 					'forward_cars': {'probability': 0.007, 'size': (50, 75), 'moving': (8, 14)},
-					'backwards_cars': {'probability': 0.005, 'size': (50, 75), 'moving': (3, 8)}
+					'backwards_cars': {'probability': 0.005, 'size': (50, 75), 'moving': (3, 8)},
+					'message': 'First'
 					},
 					10000: {
 					'obstacle_prob': 0.5,
 					'obstacle_size': (30, 40),
 					'step_size': 20,
+					'message': 'Second',
 					'ramps': {'probability': 0.1, 'size': (50, 75)},
 					'forward_cars': {'probability': 0.5, 'size': (80, 100), 'moving': (8, 14)},
 					'backwards_cars': {'probability': 0.5, 'size': (80, 100), 'moving': (3, 8)}

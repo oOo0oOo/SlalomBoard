@@ -53,12 +53,18 @@ class DictPage(wx.Dialog):
 		for parameter, value in sorted(self.dictionary.items()):
 			# Convert param to str
 			param = str(parameter)
+			print param, value, type(value)
 
 			t = type(value)
 			ignore = False
 			# Int or float is a text ctrl
 			if t in [int, float]:
 				disp_param = wx.TextCtrl(self, -1, str(value), size=(55, 20))
+				items = disp_param
+
+			elif t == str:
+				print 'adding str'
+				disp_param = wx.TextCtrl(self, -1, str(value), size=(120, 20))
 				items = disp_param
 
 			# Tuple returns a sizer with len(tuple) text fields
@@ -71,7 +77,7 @@ class DictPage(wx.Dialog):
 					items.append(ctrl)
 
 			elif t == dict:
-				disp_param = wx.Button(self, -1, 'Expand', name = param)
+				disp_param = wx.Button(self, -1, 'Expand', name = param, size=(50, 20))
 				disp_param.Bind(wx.EVT_BUTTON, self.show_dict)
 				items = False
 
@@ -89,9 +95,9 @@ class DictPage(wx.Dialog):
 
 				# A remove button
 				if self.remove:
-					remove_btn = wx.Button(self, -1, '-')
-					remove_btn.Bind(wx.EVT_BUTTON, self.remove_element, name = param)
-					param_sizer.Add(remove_btn, 0, wx.ALIGN_CENTER_VERTICAL)
+					remove_btn = wx.Button(self, -1, '-', name = param, size = (20, 20))
+					remove_btn.Bind(wx.EVT_BUTTON, self.remove_element)
+					param_sizer.Add(remove_btn, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 10)
 
 
 				# Add to main sizer
@@ -140,7 +146,6 @@ class DictPage(wx.Dialog):
 		param = evt.GetEventObject().GetName()
 		param = self.key_type(param)
 		del self.dictionary[param]
-		del self.dict_items[param]
 		self.init_layout()
 
 	def update_dict(self):
@@ -161,6 +166,8 @@ class DictPage(wx.Dialog):
 				val = int(self.dict_items[p].GetLineText(0))
 			elif t == float:
 				val = float(self.dict_items[p].GetLineText(0))
+			elif t == str:
+				val = str(self.dict_items[p].GetLineText(0))
 
 			else:
 				ignore = True
@@ -204,6 +211,7 @@ class ConfigurationEditor(wx.Dialog):
 				'obstacle_prob': 0.015,
 				'obstacle_size': (15, 22),
 				'step_size': 20,
+				'message': '',
 				'ramps': {'probability': 0.005, 'size': (50, 80)},
 				'forward_cars': {'probability': 0.007, 'size': (50, 75), 'moving': (8, 14)},
 				'backwards_cars': {'probability': 0.005, 'size': (50, 75), 'moving': (3, 8)}
@@ -358,7 +366,6 @@ class ConfigurationEditor(wx.Dialog):
 			del self.configuration[param][sel]
 		self.update()
 
-
 	def edit_btn_click(self, evt):
 		param = evt.GetEventObject().GetName()
 		sel = self.selection[param]
@@ -373,6 +380,11 @@ class ConfigurationEditor(wx.Dialog):
 				dlg = DictPage(obj, title)
 
 				if dlg.ShowModal():
+					try:
+						print dlg.dictionary['message']
+					except Exception, e:
+						pass
+
 					self.configuration[param][sel] = dlg.dictionary
 
 			elif param == 'semi_random':
