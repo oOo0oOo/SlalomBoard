@@ -9,7 +9,7 @@ from geometry import Point, Vector
 pygame.init()
 
 # All the images
-bmps = {'potholes': {}, 'boards': {}, 'player': {}, 'signs': {}, 'cars': {}, 'ramps': {}}
+bmps = {'potholes': {}, 'boards': {}, 'player': {}, 'signs': {}, 'cars': {}, 'boosts': {}}
 
 for folder in bmps.keys():
 	path = 'img/' + folder + '/' 
@@ -122,13 +122,8 @@ class SlalomBoard(object):
 			self.direction = dir_vect.scale_absolute(velocity + pump).vect
 
 	def on_tick(self):
-		# Scale the board according to 
-		board = self.board_vector()
-		#speed_scale = 1.5 *  board.length() * (1 - (board.length() / self.max_speed + 0.0001 ))
-		# print speed_scale
-		# board = board.scale_absolute(speed_scale).vect
-
-		board = board.vect
+		# Get the board vector
+		board = self.board_vector().vect
 
 		# Calculate the new direction
 		player = self.player_vector().vect
@@ -192,9 +187,10 @@ class Rectangular(ConstantMoving):
 			return False
 
 
-class Ramp(Rectangular):
-	def __init__ (self, position, moving, rotation, image, size_x = False):
+class Boost(Rectangular):
+	def __init__ (self, position, moving, rotation, image, size_x = False, speed = 0):
 		Rectangular.__init__(self, position, moving, rotation, image, size_x)
+		self.speed = speed
 
 
 class CircularObstacle(object):
@@ -287,7 +283,7 @@ class Game(object):
 		self.obstacle_prob = parameters['obstacle_prob']
 		self.obstacle_size = parameters['obstacle_size']
 
-		self.ramps = parameters['ramps']
+		self.boosts = parameters['boosts']
 
 		self.forward_cars = parameters['forward_cars']
 		self.backwards_cars = parameters['backwards_cars']
@@ -308,16 +304,17 @@ class Game(object):
 		return self.board.player_vector()
 
 
-	def random_ramp(self, probability = 0.01, size = (40, 60)):
+	def random_boost(self, probability = 0.01, size = (40, 60), speed = (30, 40)):
 		if random.random() < probability:
 			y = self.size[1] + 500
 			x = random.randrange(0, self.size[0])
 
 			width = random.randrange(size[0], size[1])
-			rotation = 0
+			speed = random.randrange(speed[0], speed[1])
+			rotation = 180
 
-			key = random.choice(bmps['ramps'].keys())
-			self.obstacles.append(Ramp(Point(x, y), Point(0,0), rotation, bmps['ramps'][key], width))
+			key = random.choice(bmps['boosts'].keys())
+			self.obstacles.append(Boost(Point(x, y), Point(0,0), rotation, bmps['boosts'][key], width, speed))
 
 
 	def random_pothole(self, probability = 0.01, size = (3, 20)):
@@ -421,8 +418,8 @@ class Game(object):
 					speed = 5
 					break
 
-				elif type(ob) == Ramp:
-					speed = 20
+				elif type(ob) == Boost:
+					speed = ob.speed
 					break
 
 				elif type(ob) == Rectangular:
@@ -461,8 +458,8 @@ class Game(object):
 			# Forward and backwards cars
 			self.random_car(**self.forward_cars)
 			self.random_car(**self.backwards_cars)
-			# Ramps
-			self.random_ramp(**self.ramps)
+			# boosts
+			self.random_boost(**self.boosts)
 
 		# Check if next map update is due
 		if self.parameters['map']:
@@ -569,7 +566,7 @@ def start_game(parameters):
 
 		# Draw all the obstacles
 		for o in game.obstacles:
-			if type(o) in (Rectangular, Ramp):
+			if type(o) in (Rectangular, Boost):
 				size = o.size[0]
 			elif type(o) == CircularObstacle:
 				size = o.radius * 2
@@ -578,9 +575,14 @@ def start_game(parameters):
 				draw_image(o.img, o.position, o.rotation, size)
 
 			else:
+				if type(o) == Boost:
+					img = bmps['signs']['arrow_up_green']
+				else:
+					img = bmps['signs']['arrow_up']
+
 				width = size - (size * (o.position.y - game_size[1]) / 500)
 				pos = Point(o.position.x, game_size[1] - 30)
-				draw_image(bmps['signs']['arrow_up'], pos, 0, width)
+				draw_image(img, pos, 0, width)
 				#pygame.draw.circle(window, white, [int(o.position.x), game_size[1] - 10], o.radius, 0)
 		
 		# Show trail
@@ -676,19 +678,19 @@ if __name__ == '__main__':
 					'obstacle_prob': 0.015,
 					'obstacle_size': (15, 22),
 					'step_size': 20,
-					'ramps': {'probability': 0.0, 'size': (80, 110)},
+					'boosts': {'probability': 0.0, 'size': (40, 50), 'speed': (20, 40)},
 					'forward_cars': {'probability': 0.007, 'size': (50, 75), 'moving': (8, 14)},
 					'backwards_cars': {'probability': 0.005, 'size': (50, 75), 'moving': (3, 8)},
 					'message': 'First'
 					},
 					10000: {
-					'obstacle_prob': 0.5,
+					'obstacle_prob': 0.02,
 					'obstacle_size': (30, 40),
 					'step_size': 20,
 					'message': 'Second',
-					'ramps': {'probability': 0.1, 'size': (50, 75)},
-					'forward_cars': {'probability': 0.5, 'size': (80, 100), 'moving': (8, 14)},
-					'backwards_cars': {'probability': 0.5, 'size': (80, 100), 'moving': (3, 8)}
+					'boosts': {'probability': 0.1, 'size': (60, 80), 'speed': (20, 25)},
+					'forward_cars': {'probability': 0.005, 'size': (80, 100), 'moving': (8, 14)},
+					'backwards_cars': {'probability': 0.005, 'size': (80, 100), 'moving': (3, 8)}
 					}
 					},
 				'board': {

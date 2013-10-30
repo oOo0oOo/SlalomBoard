@@ -53,7 +53,6 @@ class DictPage(wx.Dialog):
 		for parameter, value in sorted(self.dictionary.items()):
 			# Convert param to str
 			param = str(parameter)
-			print param, value, type(value)
 
 			t = type(value)
 			ignore = False
@@ -63,7 +62,6 @@ class DictPage(wx.Dialog):
 				items = disp_param
 
 			elif t == str:
-				print 'adding str'
 				disp_param = wx.TextCtrl(self, -1, str(value), size=(120, 20))
 				items = disp_param
 
@@ -162,12 +160,8 @@ class DictPage(wx.Dialog):
 					val = [float(va) for va in val]
 				val = tuple(val)
 
-			elif t == int:
-				val = int(self.dict_items[p].GetLineText(0))
-			elif t == float:
-				val = float(self.dict_items[p].GetLineText(0))
-			elif t == str:
-				val = str(self.dict_items[p].GetLineText(0))
+			elif t in [int, float, str]:
+				val = t(self.dict_items[p].GetLineText(0))
 
 			else:
 				ignore = True
@@ -212,9 +206,9 @@ class ConfigurationEditor(wx.Dialog):
 				'obstacle_size': (15, 22),
 				'step_size': 20,
 				'message': '',
-				'ramps': {'probability': 0.005, 'size': (50, 80)},
-				'forward_cars': {'probability': 0.007, 'size': (50, 75), 'moving': (8, 14)},
-				'backwards_cars': {'probability': 0.005, 'size': (50, 75), 'moving': (3, 8)}
+				'boosts': {'probability': 0.009, 'size': (60, 80), 'speed': (20, 25)},
+				'forward_cars': {'probability': 0.007, 'size': (60, 85), 'moving': (8, 14)},
+				'backwards_cars': {'probability': 0.005, 'size': (60, 85), 'moving': (3, 8)}
 				},
 			'semi_random': {}
 			}
@@ -380,11 +374,6 @@ class ConfigurationEditor(wx.Dialog):
 				dlg = DictPage(obj, title)
 
 				if dlg.ShowModal():
-					try:
-						print dlg.dictionary['message']
-					except Exception, e:
-						pass
-
 					self.configuration[param][sel] = dlg.dictionary
 
 			elif param == 'semi_random':
