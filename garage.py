@@ -204,7 +204,7 @@ class ConfigurationEditor(wx.Dialog):
 				'obstacle_prob': 0.015,
 				'obstacle_size': (15, 22),
 				'step_size': 20,
-				'ramps': {'probability': 0.005, 'size': (80, 120)},
+				'ramps': {'probability': 0.005, 'size': (50, 80)},
 				'forward_cars': {'probability': 0.007, 'size': (50, 75), 'moving': (8, 14)},
 				'backwards_cars': {'probability': 0.005, 'size': (50, 75), 'moving': (3, 8)}
 				},
