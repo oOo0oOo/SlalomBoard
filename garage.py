@@ -6,7 +6,7 @@ from copy import deepcopy
 import engine
 
 class DictPage(wx.Dialog):
-	def __init__(self, dictionary, title = '', default_adds = {}, key_type = str):
+	def __init__(self, dictionary, title = '', default_adds = {}, key_type = str, remove = False):
 		'''
 			When using adds: Only one key type allowed. 
 			default_adds have to use str as keys.
@@ -23,6 +23,7 @@ class DictPage(wx.Dialog):
 		self.title = title
 		self.default_adds = default_adds
 		self.key_type = key_type
+		self.remove = remove
 		
 		self.dict_items = {}
 
@@ -86,6 +87,13 @@ class DictPage(wx.Dialog):
 				param_sizer.Add(wx.StaticText(self, -1, param.title()), 0, wx.ALIGN_CENTER_VERTICAL)
 				param_sizer.Add(disp_param, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 20)
 
+				# A remove button
+				if self.remove:
+					remove_btn = wx.Button(self, -1, '-')
+					remove_btn.Bind(wx.EVT_BUTTON, self.remove_element, name = param)
+					param_sizer.Add(remove_btn, 0, wx.ALIGN_CENTER_VERTICAL)
+
+
 				# Add to main sizer
 				dict_sizer.Add(param_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 5)	
 
@@ -101,6 +109,7 @@ class DictPage(wx.Dialog):
 			main_sizer.Add(title, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 15)
 
 		main_sizer.Add(dict_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL)
+
 		if self.default_adds:
 			main_sizer.Add(add_btn, 0, wx.ALIGN_RIGHT, wx.ALL, 10)
 
@@ -126,6 +135,13 @@ class DictPage(wx.Dialog):
 				#Update dictionary
 				self.dictionary[k] = self.default_adds[element]
 				self.init_layout()
+
+	def remove_element(self, evt):
+		param = evt.GetEventObject().GetName()
+		param = self.key_type(param)
+		del self.dictionary[param]
+		del self.dict_items[param]
+		self.init_layout()
 
 	def update_dict(self):
 		for p, v in self.dictionary.items():
@@ -362,7 +378,7 @@ class ConfigurationEditor(wx.Dialog):
 			elif param == 'semi_random':
 				title = 'Editing Map: ' + sel
 				# A map is just a dict {y_position: element}
-				dlg = DictPage(obj, title, self.configuration['endless'], int)
+				dlg = DictPage(obj, title, self.configuration['endless'], int, True)
 				if dlg.ShowModal():
 					self.configuration[param][sel] = dlg.dictionary
 
