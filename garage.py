@@ -190,7 +190,14 @@ class ConfigurationEditor(wx.Dialog):
 		# The complete current configuration is saved here
 		# This is an empty base level configuration 
 		self.configuration = {'boards': {}, 'endless': {}, 'semi_random': {},
-		'general': {'size': (900, 650),'start_pos': 8.0, 'gravity': 10, 'border_size': 75}}
+		'general': {
+			'size': (900, 650),'start_pos': 8.0, 'border_size': 75,
+			# The loop in the level
+			'loop_start': 10000,'loop_stop': 20000,
+			# The checkpoint parameters
+			'dist_checkpoint': 5000, 'time_checkpoint': 33.0,
+			'delta_time': -1.0,'delta_dist': 2500
+			}}
 
 		# This Represents Model DataStructures for each configuration item
 		self.model_conf = {

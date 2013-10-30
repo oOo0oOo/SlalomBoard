@@ -1,6 +1,7 @@
 import math
 import pygame
 import random
+import time
 from os import listdir
 from pygame.locals import QUIT, KEYDOWN, K_LEFT, K_RIGHT, K_SPACE, K_DOWN
 from geometry import Point, Vector
@@ -253,7 +254,7 @@ class Game(object):
 		self.start = Point(self.size[0] / 2, parameters['start_pos'])
 		direction = Point(0, 10)
 
-		# Add parameters to board dict
+		# Add parameters to board dict and create an instance
 		board_params = parameters['board']
 		board_params.update({'direction': Point(0, 5), 'start': self.start})
 		self.board = SlalomBoard(**board_params)
@@ -266,6 +267,16 @@ class Game(object):
 		self.last_random = 0
 		self.last_milestone = 0
 		self.speed_warning = 0
+
+		# Setup checkpoint system
+		self.dist_checkpoint = int(parameters['dist_checkpoint'])
+		self.time_checkpoint = int(parameters['time_checkpoint'])
+		self.delta_time = int(parameters['delta_time'])
+		self.delta_dist = int(parameters['delta_dist'])
+		self.num_checkpoint = 0
+
+		self.next_checkpoint = int(self.dist_checkpoint)
+		self.last_checkpoint = time.clock()
 
 		self.setup_game()
 
@@ -461,6 +472,28 @@ class Game(object):
 			# boosts
 			self.random_boost(**self.boosts)
 
+		# Check if player is over the next checkpoint
+		if px > self.next_checkpoint:
+			self.num_checkpoint += 1
+
+			self.next_checkpoint = self.next_checkpoint + self.dist_checkpoint
+			self.last_checkpoint = time.clock()
+
+			# Change time and distance
+			self.time_checkpoint += self.delta_time
+			self.dist_checkpoint += self.delta_dist
+			# Show message
+			start = Point(self.start.x, self.size[1] - 50)
+			text = FloatingText('CHECKPOINT ' + str(self.num_checkpoint), start, (245, 245, 245), 200, 100, 'helvetica', 80, Point(0, -2))
+			self.texts.append(text)
+
+		# Check if player has lost
+		if time.clock() > self.last_checkpoint + self.time_checkpoint:
+			start = Point(self.start.x, self.size[1] - 50)
+			text = FloatingText('GAME OVER', start, (245, 20, 20), 500, 100, 'helvetica', 80, Point(0, -1))
+			self.texts.append(text)
+			self.last_checkpoint = time.clock()
+
 		# Check if next map update is due
 		if self.parameters['map']:
 			if px > self.next_upd:
@@ -584,6 +617,13 @@ def start_game(parameters):
 				pos = Point(o.position.x, game_size[1] - 30)
 				draw_image(img, pos, 0, width)
 				#pygame.draw.circle(window, white, [int(o.position.x), game_size[1] - 10], o.radius, 0)
+
+		# Draw the checkpoint line
+		dist_left = game.next_checkpoint - game.board.position.y
+		if dist_left < game_size[1] - start_pos:
+			y = start_pos + dist_left
+			cp = pygame.Rect(parameters['border_size'], y, game_size[0] - parameters['border_size'], 5)
+			pygame.draw.rect(window, blue, cp)
 		
 		# Show trail
 		position = game.board.position
@@ -640,6 +680,12 @@ def start_game(parameters):
 		for t in game.texts:
 			draw_text(t.text, t.position.transform(t_vect), t.font, t.size, t.get_color())
 
+		# Show time and distance left
+		time_left = round(game.time_checkpoint + game.last_checkpoint - time.clock(), 1)
+		dist_left = round(float(game.next_checkpoint - game.board.position.y) / 100, 0)
+		draw_text(str(time_left) + 's', Point(game_size[0] - parameters['border_size'], 40), 'helvetica', 25, white)
+		draw_text(str(dist_left) + 'm', Point(game_size[0] - parameters['border_size'], 60), 'helvetica', 25, white)
+
 		#Handle events (single press, not hold)
 		quitted = False
 		for event in pygame.event.get():
@@ -673,7 +719,17 @@ if __name__ == '__main__':
 	params = {	'size': (900, 650),
 				'border_size': 75,
 				'start_pos': 8.0,
-				'gravity': 10,
+
+				# The loop in the level
+				'loop_start': 10000,
+				'loop_stop': 20000,
+				
+				# The checkpoint parameters
+				'dist_checkpoint': 5000,
+				'time_checkpoint': 33.0,
+				'delta_time': -1.0,
+				'delta_dist': 2500,
+
 				'map': {0: {
 					'obstacle_prob': 0.015,
 					'obstacle_size': (15, 22),
