@@ -423,24 +423,22 @@ class Game(object):
 
 		# Check collision of board with any obstacle
 		found = False
-		speed = -1
+		vector = Vector(Point(0,0), self.board.direction)
 		for ob in self.obstacles:
 			if ob.check_collision(board.p1):
 				if type(ob) == CircularObstacle:
-					speed = 5
+					self.board.direction = vector.scale_absolute(5).vect
 					break
 
 				elif type(ob) == Boost:
-					speed = ob.speed
+					speed = float(ob.speed)/100
+					if self.board.speed() + speed < self.board.max_speed * 1.08:
+						self.board.direction = vector.scale_relative(1+speed).vect
 					break
 
 				elif type(ob) == Rectangular:
-					speed = 1
+					self.board.direction = vector.scale_absolute(1).vect
 					break
-
-		if speed != -1:
-			vector = Vector(Point(0,0), self.board.direction)
-			self.board.direction = vector.scale_absolute(speed).vect
 
 	def on_tick(self):
 		# Advance board
@@ -751,7 +749,7 @@ if __name__ == '__main__':
 					'obstacle_size': (30, 40),
 					'step_size': 20,
 					'message': 'Second',
-					'boosts': {'probability': 0.1, 'size': (60, 80), 'speed': (20, 25)},
+					'boosts': {'probability': 0.1, 'size': (60, 80), 'speed': (20, 40)},
 					'forward_cars': {'probability': 0.005, 'size': (80, 100), 'moving': (8, 14)},
 					'backwards_cars': {'probability': 0.005, 'size': (80, 100), 'moving': (3, 8)}
 					}
