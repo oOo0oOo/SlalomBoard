@@ -195,11 +195,12 @@ class Boost(Rectangular):
 
 
 class CircularObstacle(object):
-	def __init__(self, position, rotation, radius, image):
+	def __init__(self, position, rotation, radius, image, speed = 0):
 		self.radius = radius
 		self.position = position
 		self.img = image
 		self.rotation = rotation
+		self.speed = float(speed)
 
 	def on_tick(self, speed_y):
 		self.position.y -= speed_y
@@ -290,10 +291,8 @@ class Game(object):
 			self.next_upd = min(self.parameters['elements'].keys())
 
 	def set_parameters(self, parameters):
-		# The obstacle parameters
 		self.step_size = parameters['step_size']
-		self.obstacle_prob = parameters['obstacle_prob']
-		self.obstacle_size = parameters['obstacle_size']
+		self.obstacle_params = parameters['obstacles']
 
 		self.boosts = parameters['boosts']
 
@@ -329,7 +328,7 @@ class Game(object):
 			self.obstacles.append(Boost(Point(x, y), Point(0,0), rotation, bmps['boosts'][key], width, speed))
 
 
-	def random_pothole(self, probability = 0.01, size = (3, 20)):
+	def random_pothole(self, probability = 0.01, size = (3, 20), speed = (50, 80)):
 		if random.random() < probability:
 			# Create a random circular obstacle (with pothole image)
 			y = self.size[1] + 500
@@ -343,9 +342,10 @@ class Game(object):
 
 			radius = random.randrange(size[0], size[1]+1)
 			rotation = random.randrange(0, 360)
+			speed = random.randrange(speed[0], speed[1]+1)
 
 			key = random.choice(bmps['potholes'].keys())
-			self.obstacles.append(CircularObstacle(Point(x, y), rotation, radius, bmps['potholes'][key]))
+			self.obstacles.append(CircularObstacle(Point(x, y), rotation, radius, bmps['potholes'][key], speed))
 
 	def random_car(self, probability = 0.01, size = (20, 25), moving = (10, 14), forward = True):
 		if random.random() < probability:
@@ -427,7 +427,10 @@ class Game(object):
 		for ob in self.obstacles:
 			if ob.check_collision(board.p1):
 				if type(ob) == CircularObstacle:
-					self.board.direction = vector.scale_absolute(5).vect
+					cur = self.board.speed()
+					breaking = ob.speed / 100
+					if cur * breaking > self.board.break_speed:
+						self.board.direction = vector.scale_relative(breaking).vect
 					break
 
 				elif type(ob) == Boost:
@@ -463,8 +466,8 @@ class Game(object):
 		if px > self.last_random + self.step_size:
 			self.last_random = px
 
-			# Potholes (obstacles)
-			self.random_pothole(self.obstacle_prob, self.obstacle_size)
+			# Potholes
+			self.random_pothole(**self.obstacle_params)
 			# Forward and backwards cars
 			self.random_car(**self.forward_cars)
 			self.random_car(**self.backwards_cars)
@@ -736,19 +739,17 @@ if __name__ == '__main__':
 				},
 
 				'elements': {0: {
-					'obstacle_prob': 0.015,
-					'obstacle_size': (15, 22),
+					'message': 'First',
 					'step_size': 20,
+					'obstacles' : {'probability': 0.02, 'size': (30, 40), 'speed': (6, 6)},
 					'boosts': {'probability': 0.0, 'size': (40, 50), 'speed': (20, 40)},
 					'forward_cars': {'probability': 0.007, 'size': (50, 75), 'moving': (8, 14)},
 					'backwards_cars': {'probability': 0.005, 'size': (50, 75), 'moving': (3, 8)},
-					'message': 'First'
 					},
 					10000: {
-					'obstacle_prob': 0.02,
-					'obstacle_size': (30, 40),
 					'step_size': 20,
 					'message': 'Second',
+					'obstacles' : {'probability': 0.05, 'size': (30, 40), 'speed': (6, 6)},
 					'boosts': {'probability': 0.1, 'size': (60, 80), 'speed': (20, 40)},
 					'forward_cars': {'probability': 0.005, 'size': (80, 100), 'moving': (8, 14)},
 					'backwards_cars': {'probability': 0.005, 'size': (80, 100), 'moving': (3, 8)}
