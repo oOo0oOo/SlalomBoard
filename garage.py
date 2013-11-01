@@ -217,7 +217,17 @@ class ConfigurationEditor(wx.Dialog):
 				'forward_cars': {'probability': 0.007, 'size': (60, 85), 'moving': (8, 14)},
 				'backwards_cars': {'probability': 0.005, 'size': (60, 85), 'moving': (3, 8)}
 				},
-			'semi_random': {}
+			'semi_random': {
+			'general': {
+				'size': (900, 650),'start_pos': 8.0, 'border_size': 75,
+				# The loop in the level
+				'loop_start': 10000, 'loop_stop': 20000,
+				# The checkpoint parameters
+				'dist_checkpoint': 5000, 'time_checkpoint': 33.0,
+				'delta_time': -1.0,'delta_dist': 2500
+				},
+			'elements': {}
+			}
 			}
 
 		# Current Selection
@@ -245,6 +255,7 @@ class ConfigurationEditor(wx.Dialog):
 
 		# Layout list boxes and their titles
 		lb_sizer = wx.BoxSizer(wx.HORIZONTAL)
+
 		for param, title in titles.items():
 
 			# Add the title
@@ -264,8 +275,13 @@ class ConfigurationEditor(wx.Dialog):
 			title_sizer.Add(rem_btn, 0, wx.TOP, 5)
 			title_sizer.Add(edit_btn, 0, wx.TOP, 5)
 
+			if param == 'semi_random':
+				edit_param_btn = wx.Button(self, -1, 'Params', name = 'semi_random_params')
+				edit_param_btn.Bind(wx.EVT_BUTTON, self.edit_btn_click)
+				title_sizer.Add(edit_param_btn, 0, wx.TOP, 5)
+
 			# Add the title sizer
-			lb_sizer.Add(title_sizer, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 10)
+			lb_sizer.Add(title_sizer, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 10)
 
 			# Create and add the listbox
 			self.lb_elements[param] = wx.ListBox(self, -1, (0, 0), (90, 120), [], wx.LB_SINGLE, name = param)
@@ -277,7 +293,7 @@ class ConfigurationEditor(wx.Dialog):
 
 		# All the Buttons
 		button_sizer = wx.BoxSizer(wx.HORIZONTAL)
-		general_btn = wx.Button(self, -1, 'General Configuration')
+		general_btn = wx.Button(self, -1, 'Endless Configuration')
 		endless_btn = wx.Button(self, -1, 'Play Element')
 		play_btn = wx.Button(self, -1, 'Play Map')
 		load_btn = wx.Button(self, -1, 'Load from file')
@@ -289,11 +305,11 @@ class ConfigurationEditor(wx.Dialog):
 		play_btn.Bind(wx.EVT_BUTTON, self.start_map)
 		save_btn.Bind(wx.EVT_BUTTON, self.save_configuration)
 
-		button_sizer.Add(general_btn, 0, wx.RIGHT, 10)
-		button_sizer.Add(endless_btn, 0, wx.RIGHT, 10)
-		button_sizer.Add(play_btn, 0, wx.RIGHT, 10)
-		button_sizer.Add(load_btn, 0, wx.RIGHT, 10)
-		button_sizer.Add(save_btn, 0, wx.RIGHT)
+		button_sizer.Add(play_btn, 0, wx.RIGHT, 6)
+		button_sizer.Add(endless_btn, 0, wx.RIGHT, 32)
+		button_sizer.Add(load_btn, 0, wx.RIGHT, 6)
+		button_sizer.Add(save_btn, 0, wx.RIGHT, 32)
+		button_sizer.Add(general_btn)
 
 		# Set up the main sizer
 		main_sizer.Add(lb_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 15)
@@ -369,26 +385,39 @@ class ConfigurationEditor(wx.Dialog):
 
 	def edit_btn_click(self, evt):
 		param = evt.GetEventObject().GetName()
-		sel = self.selection[param]
-		if sel:
+		if param in ('boards', 'endless'):
+			sel = self.selection[param]
 			obj = self.configuration[param][sel]
-			if param in ('boards', 'endless'):
-				if param == 'boards':
-					title = 'Editing Board: ' + sel
-				else:
-					title = 'Editing Element: ' + sel
+			if param == 'boards':
+				title = 'Editing Board: ' + sel
+			else:
+				title = 'Editing Element: ' + sel
 
-				dlg = DictPage(obj, title)
+			dlg = DictPage(obj, title)
 
-				if dlg.ShowModal():
-					self.configuration[param][sel] = dlg.dictionary
+			if dlg.ShowModal():
+				self.configuration[param][sel] = dlg.dictionary
 
-			elif param == 'semi_random':
-				title = 'Editing Map: ' + sel
-				# A map is just a dict {y_position: element}
-				dlg = DictPage(obj, title, self.configuration['endless'], int, True)
-				if dlg.ShowModal():
-					self.configuration[param][sel] = dlg.dictionary
+		elif param == 'semi_random':
+			sel = self.selection['semi_random']
+			obj = self.configuration[param][sel]
+
+			title = 'Editing Map Elements: ' + sel
+			obj = obj['elements']
+			# A map is just a dict {y_position: element}
+			dlg = DictPage(obj, title, self.configuration['endless'], int, True)
+			if dlg.ShowModal():
+				self.configuration[param][sel]['elements'] = dlg.dictionary
+
+		elif param == 'semi_random_params':
+			sel = self.selection['semi_random']
+			obj = self.configuration['semi_random'][sel]
+
+			title = 'Editing Map Parameters: ' + sel
+			# A map is just a dict {y_position: element}
+			dlg = DictPage(obj['general'], title)
+			if dlg.ShowModal():
+				self.configuration['semi_random'][sel]['general'] = dlg.dictionary
 
 
 		self.update()
@@ -401,7 +430,7 @@ class ConfigurationEditor(wx.Dialog):
 
 			# Verschachtelung
 			params['board'] = deepcopy(board_params)
-			params['map'] = {0: deepcopy(map_params)}
+			params['elements'] = {0: deepcopy(map_params)}
 
 			# Start the game
 			engine.start_game(params)
@@ -409,12 +438,10 @@ class ConfigurationEditor(wx.Dialog):
 	def start_map(self, evt):
 		if self.selection['boards'] and self.selection['semi_random']:
 			board_params = self.configuration['boards'][self.selection['boards']]
-			map_params = self.configuration['semi_random'][self.selection['semi_random']]
-			params = deepcopy(self.configuration['general'])
-
+			params = self.configuration['semi_random'][self.selection['semi_random']]
+			
 			# Verschachtelung
 			params['board'] = deepcopy(board_params)
-			params['map'] = deepcopy(map_params)
 			
 			# Start the game
 			engine.start_game(params)

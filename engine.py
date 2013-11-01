@@ -249,9 +249,10 @@ class FloatingText(object):
 class Game(object):
 	def __init__(self, parameters):
 		self.parameters = parameters
-		self.size = parameters['street_size']
+		self.general = parameters['general']
+		self.size = self.general['street_size']
 
-		self.start = Point(self.size[0] / 2, parameters['start_pos'])
+		self.start = Point(self.size[0] / 2, self.general['start_pos'])
 		direction = Point(0, 10)
 
 		# Add parameters to board dict and create an instance
@@ -269,10 +270,10 @@ class Game(object):
 		self.speed_warning = 0
 
 		# Setup checkpoint system
-		self.dist_checkpoint = int(parameters['dist_checkpoint'])
-		self.time_checkpoint = int(parameters['time_checkpoint'])
-		self.delta_time = int(parameters['delta_time'])
-		self.delta_dist = int(parameters['delta_dist'])
+		self.dist_checkpoint = int(self.general['dist_checkpoint'])
+		self.time_checkpoint = int(self.general['time_checkpoint'])
+		self.delta_time = int(self.general['delta_time'])
+		self.delta_dist = int(self.general['delta_dist'])
 		self.num_checkpoint = 0
 
 		self.next_checkpoint = int(self.dist_checkpoint)
@@ -282,11 +283,11 @@ class Game(object):
 
 	def setup_game(self):
 		# Setup parameters (position 0 are initial parameters)
-		self.set_parameters(self.parameters['map'][0])
+		self.set_parameters(self.parameters['elements'][0])
 		# and remove parameters
-		del self.parameters['map'][0]
-		if self.parameters['map']:
-			self.next_upd = min(self.parameters['map'].keys())
+		del self.parameters['elements'][0]
+		if self.parameters['elements']:
+			self.next_upd = min(self.parameters['elements'].keys())
 
 	def set_parameters(self, parameters):
 		# The obstacle parameters
@@ -495,14 +496,14 @@ class Game(object):
 			self.last_checkpoint = time.clock()
 
 		# Check if next map update is due
-		if self.parameters['map']:
+		if self.parameters['elements']:
 			if px > self.next_upd:
 				# Set new parameters
-				self.set_parameters(self.parameters['map'][self.next_upd])
-				del self.parameters['map'][self.next_upd]
+				self.set_parameters(self.parameters['elements'][self.next_upd])
+				del self.parameters['elements'][self.next_upd]
 
-				if self.parameters['map']:
-					self.next_upd = min(self.parameters['map'].keys())
+				if self.parameters['elements']:
+					self.next_upd = min(self.parameters['elements'].keys())
 
 
 		# Display how far player is
@@ -532,18 +533,21 @@ class Game(object):
 def start_game(parameters):
 	pygame.init()
 	fpsClock = pygame.time.Clock()
+
 	# The game size and the player start position
-	game_size = parameters['size']
+	general_params = parameters['general']
+	game_size = parameters['general']['size']
 
 	# board_size is minus the border
-	parameters['street_size'] = (game_size[0] - 2 * parameters['border_size'], game_size[1])
+	general_params['street_size'] = (game_size[0] - 2 * general_params['border_size'], game_size[1])
 	
-	# transpose vector:
-	t_vect = Point(parameters['border_size'], 0)
+
+	# transpose vector (because of border):
+	t_vect = Point(general_params['border_size'], 0)
 
 	middle = game_size[0] / 2
-	start_pos = parameters['street_size'][1] / parameters['start_pos']
-	parameters.update({'start_pos': start_pos})
+	start_pos = general_params['street_size'][1] / general_params['start_pos']
+	general_params.update({'start_pos': start_pos})
 
 	window = pygame.display.set_mode(game_size)
 	pygame.display.set_caption('Slalom Boarding')
@@ -588,8 +592,8 @@ def start_game(parameters):
 	while True:
 		# Draw Street and Borders
 		window.fill(black)
-		b1 = pygame.Rect(0, 0, parameters['border_size'], game_size[1])
-		b2 = pygame.Rect(game_size[0] - parameters['border_size'], 0, parameters['border_size'], game_size[1])
+		b1 = pygame.Rect(0, 0, general_params['border_size'], game_size[1])
+		b2 = pygame.Rect(game_size[0] - general_params['border_size'], 0, general_params['border_size'], game_size[1])
 		pygame.draw.rect(window, green, b1)
 		pygame.draw.rect(window, green, b2)
 
@@ -622,7 +626,7 @@ def start_game(parameters):
 		dist_left = game.next_checkpoint - game.board.position.y
 		if dist_left < game_size[1] - start_pos:
 			y = start_pos + dist_left
-			cp = pygame.Rect(parameters['border_size'], y, game_size[0] - parameters['border_size'], 5)
+			cp = pygame.Rect(general_params['border_size'], y, game_size[0] - general_params['border_size'], 5)
 			pygame.draw.rect(window, blue, cp)
 		
 		# Show trail
@@ -659,10 +663,10 @@ def start_game(parameters):
 			height = 10 + int(50 * pump)
 
 			color = pygame.Color(10, g, 10)
-			rect = pygame.Rect(parameters['border_size'] + 10, 10, 10, height)
+			rect = pygame.Rect(general_params['border_size'] + 10, 10, 10, height)
 			pygame.draw.rect(window, color, rect)
 		else:
-			pygame.draw.circle(window, red, (parameters['border_size'] + 20,20), 10, 0)
+			pygame.draw.circle(window, red, (general_params['border_size'] + 20,20), 10, 0)
 
 		# Show current speed and fps
 		speed = game.board.speed()
@@ -671,10 +675,10 @@ def start_game(parameters):
 			c = (245, 10, 10)
 		else:
 			c = (245, 245, 245)
-		draw_text(text, Point(parameters['border_size'] + 55, 22), size = 30, color = c)
+		draw_text(text, Point(general_params['border_size'] + 55, 22), size = 30, color = c)
 
 		fps = str(int(fpsClock.get_fps())) + ' fps'
-		draw_text(fps, Point(game_size[0] - parameters['border_size'], 20), size = 25)
+		draw_text(fps, Point(game_size[0] - general_params['border_size'], 20), size = 25)
 
 		# Overlay texts
 		for t in game.texts:
@@ -683,8 +687,8 @@ def start_game(parameters):
 		# Show time and distance left
 		time_left = round(game.time_checkpoint + game.last_checkpoint - time.clock(), 1)
 		dist_left = round(float(game.next_checkpoint - game.board.position.y) / 100, 0)
-		draw_text(str(time_left) + 's', Point(game_size[0] - parameters['border_size'], 40), 'helvetica', 25, white)
-		draw_text(str(dist_left) + 'm', Point(game_size[0] - parameters['border_size'], 60), 'helvetica', 25, white)
+		draw_text(str(time_left) + 's', Point(game_size[0] - general_params['border_size'], 40), 'helvetica', 25, white)
+		draw_text(str(dist_left) + 'm', Point(game_size[0] - general_params['border_size'], 60), 'helvetica', 25, white)
 
 		#Handle events (single press, not hold)
 		quitted = False
@@ -716,21 +720,24 @@ def start_game(parameters):
 
 if __name__ == '__main__':
 
-	params = {	'size': (900, 650),
-				'border_size': 75,
-				'start_pos': 8.0,
+	params = {	
+				'general': {
+					'size': (900, 650),
+					'border_size': 75,
+					'start_pos': 8.0,
 
-				# The loop in the level
-				'loop_start': 10000,
-				'loop_stop': 20000,
-				
-				# The checkpoint parameters
-				'dist_checkpoint': 5000,
-				'time_checkpoint': 33.0,
-				'delta_time': -1.0,
-				'delta_dist': 2500,
+					# The loop in the level
+					'loop_start': 10000,
+					'loop_stop': 20000,
+					
+					# The checkpoint parameters
+					'dist_checkpoint': 5000,
+					'time_checkpoint': 33.0,
+					'delta_time': -1.0,
+					'delta_dist': 2500
+				},
 
-				'map': {0: {
+				'elements': {0: {
 					'obstacle_prob': 0.015,
 					'obstacle_size': (15, 22),
 					'step_size': 20,
