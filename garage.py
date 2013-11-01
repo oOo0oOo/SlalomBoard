@@ -209,10 +209,9 @@ class ConfigurationEditor(wx.Dialog):
 				},
 
 			'endless': {
-				'obstacle_prob': 0.015,
-				'obstacle_size': (15, 22),
 				'step_size': 20,
 				'message': '',
+				'obstacles' : {'probability': 0.05, 'size': (30, 40), 'speed': (50, 50)},
 				'boosts': {'probability': 0.009, 'size': (60, 80), 'speed': (20, 25)},
 				'forward_cars': {'probability': 0.007, 'size': (60, 85), 'moving': (8, 14)},
 				'backwards_cars': {'probability': 0.005, 'size': (60, 85), 'moving': (3, 8)}
@@ -426,7 +425,7 @@ class ConfigurationEditor(wx.Dialog):
 		if self.selection['boards'] and self.selection['endless']:
 			board_params = self.configuration['boards'][self.selection['boards']]
 			map_params = self.configuration['endless'][self.selection['endless']]
-			params = deepcopy(self.configuration['general'])
+			params = {'general': deepcopy(self.configuration['general'])}
 
 			# Verschachtelung
 			params['board'] = deepcopy(board_params)

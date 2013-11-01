@@ -51,7 +51,7 @@ class SlalomBoard(object):
 		self.pump_scale = 1 / (math.sqrt(2*math.pi*self.sigma**2))
 
 		self.pump_blocked = False
-
+		self.currently_on = False
 
 	def board_vector(self):
 		pos = Point(self.position.x, self.start.y)
@@ -424,24 +424,37 @@ class Game(object):
 		# Check collision of board with any obstacle
 		found = False
 		vector = Vector(Point(0,0), self.board.direction)
+		cur = self.board.currently_on
 		for ob in self.obstacles:
 			if ob.check_collision(board.p1):
 				if type(ob) == CircularObstacle:
+					if cur == id(ob): break
 					cur = self.board.speed()
-					breaking = ob.speed / 100
+					breaking = 1 - (ob.speed / 100)
 					if cur * breaking > self.board.break_speed:
 						self.board.direction = vector.scale_relative(breaking).vect
+
+					self.board.currently_on = id(ob)
 					break
 
 				elif type(ob) == Boost:
-					speed = float(ob.speed)/100
-					if self.board.speed() + speed < self.board.max_speed * 1.08:
-						self.board.direction = vector.scale_relative(1+speed).vect
+					if cur == id(ob): break
+					speed =  1 + float(ob.speed)/100
+					if self.board.speed() * speed <= self.board.max_speed * 1.1:
+						self.board.direction = vector.scale_relative(speed).vect
+
+					self.board.currently_on = id(ob)
 					break
 
 				elif type(ob) == Rectangular:
+					if cur == id(ob): break
+
 					self.board.direction = vector.scale_absolute(1).vect
+
+					self.board.currently_on = id(ob)
 					break
+		else:
+			self.board.currently_on = False
 
 	def on_tick(self):
 		# Advance board
@@ -741,7 +754,7 @@ if __name__ == '__main__':
 				'elements': {0: {
 					'message': 'First',
 					'step_size': 20,
-					'obstacles' : {'probability': 0.02, 'size': (30, 40), 'speed': (6, 6)},
+					'obstacles' : {'probability': 0.02, 'size': (30, 40), 'speed': (20, 20)},
 					'boosts': {'probability': 0.0, 'size': (40, 50), 'speed': (20, 40)},
 					'forward_cars': {'probability': 0.007, 'size': (50, 75), 'moving': (8, 14)},
 					'backwards_cars': {'probability': 0.005, 'size': (50, 75), 'moving': (3, 8)},
@@ -749,7 +762,7 @@ if __name__ == '__main__':
 					10000: {
 					'step_size': 20,
 					'message': 'Second',
-					'obstacles' : {'probability': 0.05, 'size': (30, 40), 'speed': (6, 6)},
+					'obstacles' : {'probability': 0.05, 'size': (30, 40), 'speed': (50, 50)},
 					'boosts': {'probability': 0.1, 'size': (60, 80), 'speed': (20, 40)},
 					'forward_cars': {'probability': 0.005, 'size': (80, 100), 'moving': (8, 14)},
 					'backwards_cars': {'probability': 0.005, 'size': (80, 100), 'moving': (3, 8)}
