@@ -440,7 +440,7 @@ class Game(object):
 				elif type(ob) == Boost:
 					if cur == id(ob): break
 					speed =  1 + float(ob.speed)/100
-					if self.board.speed() * speed <= self.board.max_speed * 1.1:
+					if self.board.speed() * speed <= self.board.max_speed * 1.03:
 						self.board.direction = vector.scale_relative(speed).vect
 
 					self.board.currently_on = id(ob)
